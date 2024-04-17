@@ -27,9 +27,10 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 ## Profile
 
 - [x] Collect display name and avatar
-- [ ] Collect push rules
-- [x] Collect all (?), but especially `m.direct` account data
-  - only `m.direct` for now
+- [x] Collect push rules
+- Collect account data
+  - [x] `m.direct`
+  - [x] `m.ignored_user_list`
 
 ## Pre-migration (UI)
 

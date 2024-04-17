@@ -20,6 +20,7 @@ async function main() {
     const account = await collectAccount(client);
     
     console.log('Profile info:', account.profileInfo);
+    console.log('Ignored users:', account.ignoredUsers);
     console.log(`Rooms available for migraton:`);
     for (const room of account.rooms) {
         if (canBeMigrated(room)) {

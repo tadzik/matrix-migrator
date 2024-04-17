@@ -19,12 +19,18 @@ interface UnavailableRoom {
     reason: MigratorError,
 }
 
+type GenericAccountData = { [key: string]: any };
+
 interface Account {
     profileInfo: {
         displayname?: string,
         avatar_url?: string,
     },
-    directMessages: { [mxid: string]: string[] },
+
+    directMessages: GenericAccountData,
+    ignoredUsers:   GenericAccountData,
+    pushRules:      sdk.IPushRules,
+
     rooms: Set<Room>,
 }
 type Room = MigratableRoom | UnavailableRoom;
@@ -78,7 +84,7 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
 }
 
 export async function collectRooms(client: sdk.MatrixClient): Promise<Set<Room>> {
-    const joinedRooms = (await client.getJoinedRooms()).joined_rooms;//.slice(0, 10);
+    const joinedRooms = (await client.getJoinedRooms()).joined_rooms.slice(0, 10);
     let collected = 0;
     const reportProgress = () => {
         process.stderr.write('\r');
@@ -104,10 +110,16 @@ export async function collectRooms(client: sdk.MatrixClient): Promise<Set<Room>>
 
 export async function collectAccount(client: sdk.MatrixClient): Promise<Account> {
     const directMessages = await client.getAccountDataFromServer('m.direct') ?? {};
+    const ignoredUsers   = await client.getAccountDataFromServer('m.ignored_user_list') ?? {};
+    const pushRules      = await client.getPushRules();
+
     const profileInfo = await client.getProfileInfo(client.getUserId()!);
+
     return {
         profileInfo,
         rooms: await collectRooms(client),
         directMessages,
+        ignoredUsers,
+        pushRules,
     };
 }
