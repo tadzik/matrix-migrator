@@ -74,6 +74,18 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
         ));
     }
 
+    if (joinRule === JoinRule.Invite) {
+        const powerLevels = getStateEvent(state, 'm.room.power_levels').content as sdk.IPowerLevelsContent;
+        const ourPL = powerLevels.users?.[client.getUserId() ?? ''] || powerLevels.users_default || 0;
+        const requiredPL = powerLevels.invite ?? 0;
+        if (requiredPL > ourPL) {
+            problems.push(new MigratorError(
+                "New account will not be able to join room: insufficient permissions",
+                `Invite requires PL${requiredPL}, we have only ${ourPL}`,
+            ));
+        }
+    }
+
     return {
         roomId,
         roomName,

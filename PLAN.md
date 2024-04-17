@@ -20,7 +20,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 
 ### Failure points
 
-- [ ] Room is private, but *source* cannot send invites
+- [x] Room is private, but *source* cannot send invites
 - [x] Room has `m.room.history_visibility` that will make use lose old messages
 - [ ] Room is not federated (`m.room.create`->`content`->`m.federate` == false)
 
