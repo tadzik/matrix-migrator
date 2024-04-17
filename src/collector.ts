@@ -1,16 +1,21 @@
 import * as sdk from "matrix-js-sdk";
 import Semaphore from "@chriscdn/promise-semaphore";
 
-import { HistoryVisibility, IncompleteStateError, JoinRule } from "./sdk-helpers";
-import { MigratorError } from "./errors";
+import { HistoryVisibility, JoinRule } from "./sdk-helpers";
+import { IncompleteStateError, MigratorError } from "./errors";
 
-interface MigratableRoom {
+interface ProfileInfo {
+    displayname?: string,
+    avatar_url?: string,
+}
+
+export interface MigratableRoom {
     roomId: string,
     roomName?: string,
-    roomDisplayName?: string, // TODO
-    roomAvatarUrl?: string, // TODO
+    roomProfileInfo: ProfileInfo, // TODO
     joinRule: JoinRule,
     historyVisibility: sdk.HistoryVisibility,
+    powerLevels: sdk.IPowerLevelsContent,
     problems: MigratorError[],
 }
 
@@ -19,13 +24,10 @@ interface UnavailableRoom {
     reason: MigratorError,
 }
 
-type GenericAccountData = { [key: string]: any };
+type GenericAccountData = { [key: string]: object };
 
 interface Account {
-    profileInfo: {
-        displayname?: string,
-        avatar_url?: string,
-    },
+    profileInfo: ProfileInfo,
 
     directMessages: GenericAccountData,
     ignoredUsers:   GenericAccountData,
@@ -33,10 +35,11 @@ interface Account {
 
     rooms: Set<Room>,
 }
+
 type Room = MigratableRoom | UnavailableRoom;
 
 export function canBeMigrated(room: Room): room is MigratableRoom {
-    return !('fatalProblems' in room);
+    return !('reason' in room);
 }
 
 function getStateEvent(state: sdk.IStateEvent[], type: string): sdk.IContent {
@@ -46,7 +49,6 @@ function getStateEvent(state: sdk.IStateEvent[], type: string): sdk.IContent {
 }
 
 async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<MigratableRoom> {
-    const problems = [];
     const state = await client.roomState(roomId);
 
     let roomName;
@@ -67,36 +69,21 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
     const joinRule = JoinRule.fromContent(getStateEvent(state, 'm.room.join_rules'));
     const historyVisibility = HistoryVisibility.fromContent(getStateEvent(state, 'm.room.history_visibility'));
 
-    if (historyVisibility === sdk.HistoryVisibility.Invited || historyVisibility === sdk.HistoryVisibility.Joined) {
-        problems.push(new MigratorError(
-            "Message history will be lost due to room settings",
-            `m.room.history_visibility is set to ${historyVisibility}`,
-        ));
-    }
-
-    if (joinRule === JoinRule.Invite) {
-        const powerLevels = getStateEvent(state, 'm.room.power_levels').content as sdk.IPowerLevelsContent;
-        const ourPL = powerLevels.users?.[client.getUserId() ?? ''] || powerLevels.users_default || 0;
-        const requiredPL = powerLevels.invite ?? 0;
-        if (requiredPL > ourPL) {
-            problems.push(new MigratorError(
-                "New account will not be able to join room: insufficient permissions",
-                `Invite requires PL${requiredPL}, we have only ${ourPL}`,
-            ));
-        }
-    }
+    const powerLevels = getStateEvent(state, 'm.room.power_levels').content as sdk.IPowerLevelsContent;
 
     return {
         roomId,
         roomName,
+        roomProfileInfo: {},
         joinRule,
         historyVisibility,
-        problems,
+        powerLevels,
+        problems: [],
     };
 }
 
 export async function collectRooms(client: sdk.MatrixClient): Promise<Set<Room>> {
-    const joinedRooms = (await client.getJoinedRooms()).joined_rooms.slice(0, 10);
+    const joinedRooms = (await client.getJoinedRooms()).joined_rooms;
     let collected = 0;
     const reportProgress = () => {
         process.stderr.write('\r');
@@ -108,7 +95,7 @@ export async function collectRooms(client: sdk.MatrixClient): Promise<Set<Room>>
     const sem = new Semaphore(10);
     return new Set(await Promise.all(joinedRooms.map(async roomId => {
         await sem.acquire();
-        const roomFacts = await collectRoom(client, roomId).catch(reason => {
+        const room = await collectRoom(client, roomId).catch(reason => {
             return {
                 roomId,
                 reason,
@@ -116,7 +103,7 @@ export async function collectRooms(client: sdk.MatrixClient): Promise<Set<Room>>
         });
         sem.release();
         reportProgress();
-        return roomFacts;
+        return room;
     })));
 }
 
@@ -127,9 +114,11 @@ export async function collectAccount(client: sdk.MatrixClient): Promise<Account>
 
     const profileInfo = await client.getProfileInfo(client.getUserId()!);
 
+    const rooms = await collectRooms(client);
+
     return {
         profileInfo,
-        rooms: await collectRooms(client),
+        rooms,
         directMessages,
         ignoredUsers,
         pushRules,

@@ -3,6 +3,7 @@ import loglevel from "loglevel";
 import * as sdk from "matrix-js-sdk";
 import { logger as sdkLogger } from 'matrix-js-sdk/lib/logger';
 import { canBeMigrated, collectAccount } from "./collector";
+import { checkForProblems } from "./problem-checker";
 
 
 const baseUrl = process.env['MATRIX_MIGRATOR_SOURCE_BASE_URL']!;
@@ -26,6 +27,7 @@ async function main() {
     for (const room of account.rooms) {
         if (canBeMigrated(room)) {
             console.log(' - ' + room.roomName ? `${room.roomName} (${room.roomId})` : room.roomId);
+            checkForProblems(client, room);
             if (room.problems.length > 0) {
                 console.log(chalk.bold.yellow('\tIssues:'));
                 for (const problem of room.problems) {

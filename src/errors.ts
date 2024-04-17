@@ -9,3 +9,27 @@ export class MigratorError extends Error {
         super(`${displayMessage}: ${technicalDetails}`);
     }
 }
+
+class InvalidRoomError extends MigratorError {
+    constructor(technicalDetails: string) {
+        super('Room appears to be invalid', technicalDetails);
+    }
+}
+
+export class IncompleteStateError extends InvalidRoomError {
+    constructor(missingEventType: string) {
+        super(`${missingEventType} state event is missing`);
+    }
+}
+
+export class InvalidStateError extends InvalidRoomError {
+    constructor(eventType: string, problem: string) {
+        super(`Invalid contents of ${eventType}: ${problem}`);
+    }
+}
+
+export class HistoryLossError extends MigratorError {
+    constructor(technicalDetails: string) {
+        super("Message history will be lost due to room settings", technicalDetails);
+    }
+}

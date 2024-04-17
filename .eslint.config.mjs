@@ -8,7 +8,7 @@ export default [
         languageOptions: {
             globals: globals.browser,
             parserOptions: {
-                project: ['./tsconfig.json'],
+                project: ['./.tsconfig-tests.json'],
             },
         },
         "rules": {

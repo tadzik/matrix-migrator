@@ -1,23 +1,5 @@
-import { MigratorError } from './errors';
+import { InvalidStateError } from './errors';
 import * as sdk from "matrix-js-sdk";
-
-class InvalidRoomError extends MigratorError {
-    constructor(technicalDetails: string) {
-        super('Room appears to be invalid', technicalDetails);
-    }
-}
-
-export class IncompleteStateError extends InvalidRoomError {
-    constructor(missingEventType: string) {
-        super(`${missingEventType} state event is missing`);
-    }
-}
-
-export class InvalidStateError extends InvalidRoomError {
-    constructor(eventType: string, problem: string) {
-        super(`Invalid contents of ${eventType}: ${problem}`);
-    }
-}
 
 // Custom built since sdk.JoinRule doesn't contain knock_restricted (as of v32.0.0)
 export enum JoinRule {
