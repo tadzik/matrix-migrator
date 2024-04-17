@@ -2,7 +2,7 @@ import * as sdk from "matrix-js-sdk";
 
 import { MigratableRoom } from "./collector";
 import { JoinRule } from "./sdk-helpers";
-import { HistoryLossError } from "./errors";
+import { HistoryLossError, RoomNotJoinableError } from "./errors";
 import { checkForProblems } from "./problem-checker";
 
 function mockRoom(overrides = {}) {
@@ -22,14 +22,12 @@ function mockRoom(overrides = {}) {
     }
 }
 
-const mockClient = {
-    getUserId: () => '@me:server',
-} as sdk.MatrixClient;
+describe('problem-checker', () => {
+    const userId = '@me:server';
 
-describe('collector', () => {
     test('ordinary room causes no issues', () => {
         const room = mockRoom();
-        checkForProblems(mockClient, room);
+        checkForProblems(userId, new Set([room]));
         expect(room.problems.length).toBe(0);
     });
 
@@ -38,7 +36,7 @@ describe('collector', () => {
         for (const historyVisibility of badVisibilties) {
             const room = mockRoom({ historyVisibility });
 
-            checkForProblems(mockClient, room);
+            checkForProblems(userId, new Set([room]));
             expect(room.problems).toHaveLength(1);
             expect(room.problems[0]).toBeInstanceOf(HistoryLossError);
         }
@@ -46,16 +44,61 @@ describe('collector', () => {
 
     test('detects problems with joining invite-only rooms', () => {
         const room = mockRoom({ joinRule: JoinRule.Invite }); 
-        checkForProblems(mockClient, room)
+        const rooms = new Set([room]);
+        checkForProblems(userId, rooms)
         expect(room.problems).toHaveLength(0);
 
         room.powerLevels.invite = 50;
-        checkForProblems(mockClient, room);
+        checkForProblems(userId, rooms);
         expect(room.problems).toHaveLength(1);
+        expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
 
         room.problems = [];
-        room.powerLevels.users = { [mockClient.getUserId()!]: 50 };
-        checkForProblems(mockClient, room);
+        room.powerLevels.users = { [userId]: 50 };
+        checkForProblems(userId, rooms);
         expect(room.problems).toHaveLength(0);
+    });
+
+    test('sees a problem with a restricted room with no prerequisites met', () => {
+        // by spec an empty set here means effectively a private room
+        const room = mockRoom({ joinRule: JoinRule.Restricted, requiredRooms: new Set() }); 
+        const rooms = new Set([room]);
+
+        checkForProblems(userId, rooms)
+        expect(room.problems).toHaveLength(1);
+        expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
+
+        room.problems = [];
+        room.requiredRooms!.add('!room:server');
+        checkForProblems(userId, rooms)
+        expect(room.problems).toHaveLength(1);
+        expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
+    });
+
+    test('can determine a restricted room as joinable', () => {
+        const rooms = new Set([
+            mockRoom({ roomId: '!room1:server' }),
+            mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room1:server']) }),
+            mockRoom({ roomId: '!room3:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room2:server']) }),
+        ]);
+
+        checkForProblems(userId, rooms)
+        for (const room of rooms) {
+            expect(room.problems).toHaveLength(0);
+        }
+    });
+
+    test('should gracefully handle circular room requirements', () => {
+        const rooms = new Set([
+            mockRoom({ roomId: '!room1:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room2:server']) }),
+            mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room1:server']) }),
+        ]);
+
+        checkForProblems(userId, rooms)
+
+        for (const room of rooms) {
+            expect(room.problems).toHaveLength(1);
+            expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
+        }
     });
 });

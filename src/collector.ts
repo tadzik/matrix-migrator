@@ -14,6 +14,7 @@ export interface MigratableRoom {
     roomName?: string,
     roomProfileInfo: ProfileInfo, // TODO
     joinRule: JoinRule,
+    requiredRooms?: Set<string>,
     historyVisibility: sdk.HistoryVisibility,
     powerLevels: sdk.IPowerLevelsContent,
     problems: MigratorError[],
@@ -33,13 +34,8 @@ interface Account {
     ignoredUsers:   GenericAccountData,
     pushRules:      sdk.IPushRules,
 
-    rooms: Set<Room>,
-}
-
-type Room = MigratableRoom | UnavailableRoom;
-
-export function canBeMigrated(room: Room): room is MigratableRoom {
-    return !('reason' in room);
+    migratableRooms: Set<MigratableRoom>,
+    unavailableRooms: Set<UnavailableRoom>,
 }
 
 function getStateEvent(state: sdk.IStateEvent[], type: string): sdk.IContent {
@@ -66,7 +62,13 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
         }
     }
 
-    const joinRule = JoinRule.fromContent(getStateEvent(state, 'm.room.join_rules'));
+    const joinRuleContent = getStateEvent(state, 'm.room.join_rules');
+    const joinRule = JoinRule.fromContent(joinRuleContent);
+    let requiredRooms: Set<string>|undefined;
+    if (joinRule === JoinRule.Restricted) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        requiredRooms = new Set(joinRuleContent.content.allow?.map((rule: any) => rule['room_id']));
+    }
     const historyVisibility = HistoryVisibility.fromContent(getStateEvent(state, 'm.room.history_visibility'));
 
     const powerLevels = getStateEvent(state, 'm.room.power_levels').content as sdk.IPowerLevelsContent;
@@ -76,35 +78,11 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
         roomName,
         roomProfileInfo: {},
         joinRule,
+        requiredRooms,
         historyVisibility,
         powerLevels,
         problems: [],
     };
-}
-
-export async function collectRooms(client: sdk.MatrixClient): Promise<Set<Room>> {
-    const joinedRooms = (await client.getJoinedRooms()).joined_rooms;
-    let collected = 0;
-    const reportProgress = () => {
-        process.stderr.write('\r');
-        if (++collected < joinedRooms.length) {
-            process.stderr.write(`Collected ${collected}/${joinedRooms.length} rooms...`);
-        }
-    }
-
-    const sem = new Semaphore(10);
-    return new Set(await Promise.all(joinedRooms.map(async roomId => {
-        await sem.acquire();
-        const room = await collectRoom(client, roomId).catch(reason => {
-            return {
-                roomId,
-                reason,
-            };
-        });
-        sem.release();
-        reportProgress();
-        return room;
-    })));
 }
 
 export async function collectAccount(client: sdk.MatrixClient): Promise<Account> {
@@ -114,11 +92,34 @@ export async function collectAccount(client: sdk.MatrixClient): Promise<Account>
 
     const profileInfo = await client.getProfileInfo(client.getUserId()!);
 
-    const rooms = await collectRooms(client);
+    const joinedRooms = (await client.getJoinedRooms()).joined_rooms;
+    let collected = 0;
+    const reportProgress = () => {
+        process.stderr.write('\r');
+        if (++collected < joinedRooms.length) {
+            process.stderr.write(`Collected ${collected}/${joinedRooms.length} rooms...`);
+        }
+    }
+
+    const migratableRooms = new Set<MigratableRoom>();
+    const unavailableRooms = new Set<UnavailableRoom>();
+    const sem = new Semaphore(10); // so that we don't open hundreds of connections at once
+
+    await Promise.all(joinedRooms.map(async roomId => {
+        await sem.acquire();
+        await collectRoom(client, roomId).then(
+            room => migratableRooms.add(room)
+        ).catch(
+            reason => unavailableRooms.add({ roomId, reason })
+        );
+        sem.release();
+        reportProgress();
+    }));
 
     return {
         profileInfo,
-        rooms,
+        migratableRooms,
+        unavailableRooms,
         directMessages,
         ignoredUsers,
         pushRules,

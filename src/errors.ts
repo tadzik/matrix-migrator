@@ -33,3 +33,9 @@ export class HistoryLossError extends MigratorError {
         super("Message history will be lost due to room settings", technicalDetails);
     }
 }
+
+export class RoomNotJoinableError extends MigratorError {
+    constructor(technicalDetails: string) {
+        super("New account will not be able to join room: insufficient permissions", technicalDetails);
+    }
+}

@@ -2,7 +2,7 @@ import chalk from "chalk";
 import loglevel from "loglevel";
 import * as sdk from "matrix-js-sdk";
 import { logger as sdkLogger } from 'matrix-js-sdk/lib/logger';
-import { canBeMigrated, collectAccount } from "./collector";
+import { collectAccount } from "./collector";
 import { checkForProblems } from "./problem-checker";
 
 
@@ -23,20 +23,21 @@ async function main() {
     
     console.log('Profile info:', account.profileInfo);
     console.log('Ignored users:', account.ignoredUsers);
+
+    checkForProblems(client.getUserId()!, account.migratableRooms);
+
     console.log(`Rooms available for migraton:`);
-    for (const room of account.rooms) {
-        if (canBeMigrated(room)) {
-            console.log(' - ' + room.roomName ? `${room.roomName} (${room.roomId})` : room.roomId);
-            checkForProblems(client, room);
-            if (room.problems.length > 0) {
-                console.log(chalk.bold.yellow('\tIssues:'));
-                for (const problem of room.problems) {
-                    console.log(chalk.bold.yellow(`\t - ${problem.message}`));
-                }
+    for (const room of account.migratableRooms) {
+        console.log(' - ' + room.roomName ? `${room.roomName} (${room.roomId})` : room.roomId);
+        if (room.problems.length > 0) {
+            console.log(chalk.bold.yellow('\tIssues:'));
+            for (const problem of room.problems) {
+                console.log(chalk.bold.yellow(`\t - ${problem.message}`));
             }
-        } else {
-            console.warn(chalk.bold.red(` - Room ${room.roomId} cannot be migrated: ${room.reason}`));
         }
+    }
+    for (const room of account.unavailableRooms) {
+        console.warn(chalk.bold.red(` - Room ${room.roomId} cannot be migrated: ${room.reason}`));
     }
 }
 
