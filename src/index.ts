@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import loglevel from "loglevel";
 import * as sdk from "matrix-js-sdk";
 import { logger as sdkLogger } from 'matrix-js-sdk/lib/logger';
@@ -26,13 +27,13 @@ async function main() {
         if (canBeMigrated(room)) {
             console.log(' - ' + room.roomName ? `${room.roomName} (${room.roomId})` : room.roomId);
             if (room.problems.length > 0) {
-                console.log('\tIssues:');
+                console.log(chalk.bold.yellow('\tIssues:'));
                 for (const problem of room.problems) {
-                    console.log(`\t - ${problem.message}`);
+                    console.log(chalk.bold.yellow(`\t - ${problem.message}`));
                 }
             }
         } else {
-            console.warn(` - Room ${room.roomId} cannot be migrated: ${room.reason}`);
+            console.warn(chalk.bold.red(` - Room ${room.roomId} cannot be migrated: ${room.reason}`));
         }
     }
 }
