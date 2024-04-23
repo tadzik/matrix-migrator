@@ -2,7 +2,7 @@ import * as sdk from "matrix-js-sdk";
 import Semaphore from "@chriscdn/promise-semaphore";
 
 import { HistoryVisibility, JoinRule } from "./sdk-helpers";
-import { IncompleteStateError, MigratorError } from "./errors";
+import { IncompleteStateError, MigratorError, RoomTombstonedError } from "./errors";
 
 interface ProfileInfo {
     displayname?: string,
@@ -60,6 +60,11 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
         } else {
             roomName = `DM with ${roomMembers.join(', ')}`;
         }
+    }
+
+    const tombstoneEvent = state.find(ev => ev.type === 'm.room.tombstone');
+    if (tombstoneEvent) {
+        throw new RoomTombstonedError(roomName, tombstoneEvent.content.replacement_room, tombstoneEvent.content.body);
     }
 
     const joinRuleContent = getStateEvent(state, 'm.room.join_rules');

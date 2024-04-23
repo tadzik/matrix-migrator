@@ -10,6 +10,12 @@ export class MigratorError extends Error {
     }
 }
 
+export class RoomTombstonedError extends MigratorError {
+    constructor(name: string, replacementRoom: string, reason: string) {
+        super(`Room has been upgraded`, `Room ${name} has been replaced by ${replacementRoom} ("${reason}")`);
+    }
+}
+
 class InvalidRoomError extends MigratorError {
     constructor(technicalDetails: string) {
         super('Room appears to be invalid', technicalDetails);

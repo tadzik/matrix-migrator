@@ -39,6 +39,8 @@ async function main() {
     for (const room of account.unavailableRooms) {
         console.warn(chalk.bold.red(` - Room ${room.roomId} cannot be migrated: ${room.reason}`));
     }
+
+    console.log(`Total rooms available for migration: ${account.migratableRooms.size}`);
 }
 
 main().then(
