@@ -25,6 +25,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 - [x] Room has `m.room.history_visibility` that will make use lose old messages
 - [ ] Room is not federated (`m.room.create`->`content`->`m.federate` == false)
 - [ ] Existing PL is not possible to obtain for the new account
+- [ ] Secure backup is not enabled, cannot migrate room keys etc
 
 ## Profile
 
@@ -33,10 +34,12 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 - Collect account data
   - [x] `m.direct`
   - [x] `m.ignored_user_list`
+  - [ ] Everything secure backup
 
 ## Pre-migration (UI)
 
-1. Select which rooms to migrate (by last activity, space membership maybe?)
+- [ ] Select which rooms to migrate (by last activity, space membership maybe?)
+- [ ] Trim encryption room keys to the rooms we'll be migrating
   
 ## Migration itself
 
@@ -47,6 +50,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 - [x] Migrate account data
 - [x] Migrate push rules
 - [ ] Optionally migrate username and avatar
+- [ ] Migrate (merge?) secure backup contents
 
 ## Post-migration
 
