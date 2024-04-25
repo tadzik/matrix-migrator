@@ -3,6 +3,7 @@ import loglevel from "loglevel";
 import * as sdk from "matrix-js-sdk";
 import { logger as sdkLogger } from 'matrix-js-sdk/lib/logger';
 import { collectAccount } from "./collector";
+import { migrateAccount } from "./migrator";
 import { checkForProblems } from "./problem-checker";
 
 
@@ -13,18 +14,27 @@ const accessToken = process.env['MATRIX_MIGRATOR_SOURCE_ACCESS_TOKEN']!;
 async function main() {
     sdkLogger.setLevel(loglevel.levels.INFO);
 
-    const client = sdk.createClient({
+    const migrationSource = sdk.createClient({
         baseUrl,
         userId,
         accessToken,
     });
 
-    const account = await collectAccount(client);
+    const migrationTarget = sdk.createClient({
+        baseUrl,
+        userId: '@migrationtarget1:home.tadzik.net',
+        accessToken: 'syt_bWlncmF0aW9udGFyZ2V0MQ_DObHgWNBdoAIphNKqkHQ_1UFRFw'
+    });
+
+
+    const account = await collectAccount(migrationSource);
     
     console.log('Profile info:', account.profileInfo);
     console.log('Ignored users:', account.ignoredUsers);
+    console.log('Direct messages:', account.directMessages);
+    console.log('Push rules:', JSON.stringify(account.pushRules, undefined, 2));
 
-    checkForProblems(client.getUserId()!, account.migratableRooms);
+    checkForProblems(migrationSource.getUserId()!, account.migratableRooms);
 
     console.log(`Rooms available for migraton:`);
     for (const room of account.migratableRooms) {
@@ -41,6 +51,10 @@ async function main() {
     }
 
     console.log(`Total rooms available for migration: ${account.migratableRooms.size}`);
+
+    await migrateAccount(migrationSource, migrationTarget, account, {
+        migrateProfile: true,
+    });
 }
 
 main().then(

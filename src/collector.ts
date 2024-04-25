@@ -25,13 +25,19 @@ interface UnavailableRoom {
     reason: MigratorError,
 }
 
-type GenericAccountData = { [key: string]: object };
+// type GenericAccountData = { [key: string]: object };
+export type DirectMessages = { [mxid: string]: string[] }
+export interface IgnoredUserList {
+    ignored_users: {
+        [mxid: string]: Record<string, never>, // literally {}, but eslint bitches about that
+    }
+}
 
-interface Account {
+export interface Account {
     profileInfo: ProfileInfo,
 
-    directMessages: GenericAccountData,
-    ignoredUsers:   GenericAccountData,
+    directMessages: DirectMessages,
+    ignoredUsers:   IgnoredUserList,
     pushRules:      sdk.IPushRules,
 
     migratableRooms: Set<MigratableRoom>,
@@ -92,7 +98,7 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
 
 export async function collectAccount(client: sdk.MatrixClient): Promise<Account> {
     const directMessages = await client.getAccountDataFromServer('m.direct') ?? {};
-    const ignoredUsers   = await client.getAccountDataFromServer('m.ignored_user_list') ?? {};
+    const ignoredUsers   = await client.getAccountDataFromServer('m.ignored_user_list') as IgnoredUserList ?? { ignored_users: {} };
     const pushRules      = await client.getPushRules();
 
     const profileInfo = await client.getProfileInfo(client.getUserId()!);

@@ -24,6 +24,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 - [x] Room is restricted and we cannot join any of the required rooms
 - [x] Room has `m.room.history_visibility` that will make use lose old messages
 - [ ] Room is not federated (`m.room.create`->`content`->`m.federate` == false)
+- [ ] Existing PL is not possible to obtain for the new account
 
 ## Profile
 
@@ -39,12 +40,19 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
   
 ## Migration itself
 
-TBD
+- [x] Join public rooms
+- [x] Have *source* invite *target* to invite-only rooms
+- [x] Have *target* accept invites (only from the source account!)
+- [ ] Join restricted rooms until successful, or topo-sort them first
+- [x] Migrate account data
+- [x] Migrate push rules
+- [ ] Optionally migrate username and avatar
 
 ## Post-migration
 
 All optional
 
-1. Have *source* leave successfully migrated rooms
-1. Have *source* change the displayname to advertise the new MXID
-1. Add a push rule for the old MXID, so that we get notified of replies/mentions of the *source*
+- [ ] Have *source* demote itself in old rooms
+- [ ] Have *source* leave successfully migrated rooms
+- [ ] Have *source* change the displayname to advertise the new MXID
+- [ ] Add a push rule for the old MXID, so that we get notified of replies/mentions of the *source*
