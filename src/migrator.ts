@@ -99,7 +99,7 @@ async function migrateAccountData(account: Account, target: sdk.MatrixClient) {
 
     for (const kind of ['content', 'override', 'room', 'sender', 'underride'] as sdk.PushRuleKind[]) {
         for (const rule of account.pushRules.global[kind] ?? []) {
-            if (rule.default && !rule.enabled) {
+            if (rule.default && !rule.enabled && rule.rule_id !== '.m.rule.master') {
                 console.debug(`Disabling default push rule "${rule.rule_id}"`);
                 await target.setPushRuleEnabled('global', kind, rule.rule_id, false);
             } else if (!rule.default) {
