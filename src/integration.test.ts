@@ -95,6 +95,27 @@ describe('integration', () => {
         expect(joinedRooms.joined_rooms.length).toBe(1);
         expect(joinedRooms.joined_rooms[0]).toBe(room.room_id);
     });
+
+    test('can migrate invite-only room membership', async () => {
+        const room = await source.createRoom({ preset: sdk.Preset.PrivateChat });
+
+        const account = await collectAccount(source);
+        expect(account.migratableRooms.size).toBe(1);
+        const collectedRoom = Array.from(account.migratableRooms)[0];
+        expect(collectedRoom.roomId).toBe(room.room_id);
+
+        checkForProblems(source.getUserId()!, account.migratableRooms);
+        assertNoProblems(account);
+
+        await migrateAccount(source, target, account, { migrateProfile: true });
+
+        const joinedRooms = await target.getJoinedRooms();
+        expect(joinedRooms.joined_rooms.length).toBe(1);
+        expect(joinedRooms.joined_rooms[0]).toBe(room.room_id);
+
+        // should not die
+        await migrateAccount(source, target, account, { migrateProfile: true });
+    });
 });
 
 function assertNoProblems(account: Account) {

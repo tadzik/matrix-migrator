@@ -23,12 +23,20 @@ async function patiently<T>(fn: () => Promise<T>): Promise<T> {
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function catchNotFound(err: any) {
+    if (err.errcode === 'M_NOT_FOUND') {
+        return undefined;
+    }
+    throw err;
+}
+
 interface MigrationOptions {
     migrateProfile: boolean,
 }
 
 async function joinByInvite(source: sdk.MatrixClient, target: sdk.MatrixClient, roomId: string) {
-    const existingMembership = await source.getStateEvent(roomId, 'm.room.member', target.getUserId()!).then(ev => ev.membership);
+    const existingMembership = await source.getStateEvent(roomId, 'm.room.member', target.getUserId()!).then(ev => ev.membership).catch(catchNotFound);
     if (existingMembership === 'join') {
         console.debug(`Target is already in room ${roomId}`);
         return;
