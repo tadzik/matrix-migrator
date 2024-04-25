@@ -116,6 +116,20 @@ describe('integration', () => {
         // should not die
         await migrateAccount(source, target, account, { migrateProfile: true });
     });
+
+    test('can migrate ignored users', async () => {
+        await source.setIgnoredUsers(['@cat:server']);
+        await target.setIgnoredUsers(['@dog:server']);
+
+        const account = await collectAccount(source);
+        await migrateAccount(source, target, account, { migrateProfile: true });
+
+        // MatrixClient.getIgnoredUsers() is broken: https://github.com/matrix-org/matrix-js-sdk/issues/4176
+        const ignoredUsers = await target.getAccountDataFromServer('m.ignored_user_list');
+        expect(Object.keys(ignoredUsers!.ignored_users).length).toBe(2);
+        expect('@cat:server' in ignoredUsers!.ignored_users).toBe(true);
+        expect('@dog:server' in ignoredUsers!.ignored_users).toBe(true);
+    });
 });
 
 function assertNoProblems(account: Account) {
