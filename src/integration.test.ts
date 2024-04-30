@@ -197,6 +197,28 @@ describe('integration', () => {
         expect(profileInfo.avatar_url).toEqual(uploaded.content_uri);
     });
 
+    test('migrates push rules', async () => {
+        await source.setPushRuleEnabled('global', sdk.PushRuleKind.Override, '.m.rule.is_room_mention', false);
+        await source.addPushRule('global', sdk.PushRuleKind.ContentSpecific, 'cookies', {
+            actions: [ sdk.PushRuleActionName.Notify ],
+            pattern: "cookies",
+        });
+        await source.addPushRule('global', sdk.PushRuleKind.ContentSpecific, 'disabledcookies', {
+            actions: [ sdk.PushRuleActionName.Notify ],
+            pattern: "cookies",
+        });
+        await source.setPushRuleEnabled('global', sdk.PushRuleKind.ContentSpecific, 'disabledcookies', false);
+
+        const account = await collectAccount(source);
+        assertNoProblems(account);
+        await migrateAccount(source, target, account, { migrateProfile: false });
+
+        const pushRules = await target.getPushRules();
+        expect(pushRules.global.override!.find(r => r.rule_id === '.m.rule.is_room_mention')!.enabled).toEqual(false);
+        expect(pushRules.global.content!.find(r => r.rule_id === 'cookies')!.enabled).toEqual(true);
+        expect(pushRules.global.content!.find(r => r.rule_id === 'disabledcookies')!.enabled).toEqual(false);
+    });
+
     describe('complaints', () => {
         test('complains about losing history', async () => {
             const room = await source.createRoom({

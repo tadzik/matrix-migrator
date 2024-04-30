@@ -16,7 +16,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 
 - [x] Scrape rooms the *source* is joined too
 - [x] Collect join rules (public, invite etc)
-- [ ] Collect notification settings
+- [x] Collect notification settings
 
 ### Failure points
 
