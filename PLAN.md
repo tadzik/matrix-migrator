@@ -46,7 +46,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 - [x] Join public rooms
 - [x] Have *source* invite *target* to invite-only rooms
 - [x] Have *target* accept invites (only from the source account!)
-- [ ] Join restricted rooms until successful, or topo-sort them first
+- [x] Join restricted rooms, topo-sorted for optimal join order
 - [x] Migrate account data
 - [x] Migrate push rules
 - [ ] Optionally migrate username and avatar

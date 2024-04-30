@@ -2,6 +2,7 @@ import * as sdk from "matrix-js-sdk";
 
 import { Account, DirectMessages, IgnoredUserList } from "./collector";
 import { JoinRule } from "./sdk-helpers";
+import { sortRooms } from "./problem-checker";
 
 async function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -128,29 +129,16 @@ async function migrateAccountData(account: Account, target: sdk.MatrixClient) {
 }
 
 export async function migrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, account: Account, opts: MigrationOptions) {
-    const roomJoinTasks: Promise<unknown>[] = [];
-    const restrictedRooms = new Set<string>();
+    const joinOrder = sortRooms(account.migratableRooms);
 
-    for (const room of account.migratableRooms) {
-        switch (room.joinRule) {
-            case JoinRule.Public:
-                roomJoinTasks.push(target.joinRoom(room.roomId));
-                break;
-            case JoinRule.Invite:
-                roomJoinTasks.push(joinByInvite(source, target, room.roomId));
-                break;
-            case JoinRule.Restricted:
-            case JoinRule.KnockRestricted:
-                restrictedRooms.add(room.roomId);
-                // fallthrough
-            case JoinRule.Knock:
-            case JoinRule.Private:
-                throw new Error(`Room type ${room.joinRule} NYI`);
-
+    for (const room of joinOrder) {
+        if (room.joinRule === JoinRule.Invite) {
+            await joinByInvite(source, target, room.roomId);
+        } else {
+            await target.joinRoom(room.roomId);
         }
     }
 
-    await Promise.all(roomJoinTasks);
     await migrateAccountData(account, target);
     void opts; // if (opts.migrateProfile) { await migrateProfile(account, target); }
 }

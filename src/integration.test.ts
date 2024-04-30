@@ -54,6 +54,7 @@ describe('integration', () => {
 
     if (!sourceServerUrl) {
         console.log(`${sourceBaseUrlVar} not specified, skipping integration tests`);
+        // eslint-disable-next-line jest/expect-expect
         test('skipped', () => {});
         return;
     }
@@ -117,6 +118,30 @@ describe('integration', () => {
 
         // should not die
         await migrateAccount(source, target, account, { migrateProfile: true });
+    });
+
+    test('can restricted room membership', async () => {
+        const publicRoom = await source.createRoom({ preset: sdk.Preset.PublicChat });
+        await source.createRoom({
+            initial_state: [
+                {
+                    type: "m.room.join_rules",
+                    content: { join_rule: 'restricted', allow: [
+                        { type: 'm.room_membership', room_id: publicRoom.room_id }
+                    ] }
+                }
+            ]
+        });
+
+        const account = await collectAccount(source);
+        expect(account.migratableRooms.size).toBe(2);
+        checkForProblems(source.getUserId()!, account.migratableRooms);
+        assertNoProblems(account);
+
+        await migrateAccount(source, target, account, { migrateProfile: true });
+
+        const joinedRooms = await target.getJoinedRooms();
+        expect(joinedRooms.joined_rooms.length).toBe(2);
     });
 
     test('can migrate ignored users', async () => {

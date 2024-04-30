@@ -119,7 +119,7 @@ describe('sortRooms()', () => {
             mockRoom({ roomId: '!room1:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room2:server']) }),
             mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room1:server']) }),
         ]);
-        sortRooms(rooms);
+        expect(() => sortRooms(rooms)).not.toThrow();
         // no infinite loop or exception is fine, order doesn't matter since dependencies cannot be met
     });
 
