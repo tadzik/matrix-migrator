@@ -39,6 +39,7 @@ export interface Account {
     directMessages: DirectMessages,
     ignoredUsers:   IgnoredUserList,
     pushRules:      sdk.IPushRules,
+    secretStorage:  Map<string, unknown>,
 
     migratableRooms: Set<MigratableRoom>,
     unavailableRooms: Set<UnavailableRoom>,
@@ -97,9 +98,26 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
 }
 
 export async function collectAccount(client: sdk.MatrixClient): Promise<Account> {
-    const directMessages = await client.getAccountDataFromServer('m.direct') ?? {};
-    const ignoredUsers   = await client.getAccountDataFromServer('m.ignored_user_list') as IgnoredUserList ?? { ignored_users: {} };
+    const accountData = new Map<string, unknown>();
+    const accountDataPromise = new Promise<void>(resolve => {
+        client.on(sdk.ClientEvent.AccountData, ev => {
+            accountData.set(ev.getType(), ev.getContent());
+        });
+        client.on(sdk.ClientEvent.Sync, () => resolve());
+    });
+    await client.startClient();
+    await accountDataPromise;
+    const directMessages = accountData.get('m.direct') as DirectMessages ?? {};
+    const ignoredUsers   = accountData.get('m.ignored_user_list') as IgnoredUserList ?? { ignored_users: {} };
     const pushRules      = await client.getPushRules();
+
+    const secretStorage = new Map();
+    const secretPrefixes = ['m.secret_storage', 'm.cross_signing', 'm.megolm_backup.v1'];
+    for (const [key, value] of accountData.entries()) {
+        if (secretPrefixes.some(prefix => key.startsWith(prefix))) {
+            secretStorage.set(key, value);
+        }
+    }
 
     const profileInfo = await client.getProfileInfo(client.getUserId()!);
 
@@ -134,5 +152,6 @@ export async function collectAccount(client: sdk.MatrixClient): Promise<Account>
         directMessages,
         ignoredUsers,
         pushRules,
+        secretStorage,
     };
 }

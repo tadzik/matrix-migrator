@@ -79,7 +79,12 @@ describe('integration', () => {
             accessToken: targetUser.access_token,
             deviceId: targetUser.device_id,
         });
-    });    
+    });
+
+    afterEach(async () => {
+        source.logout(true);
+        target.logout(true);
+    });
 
     test('can migrate public room membership', async () => {
         const room = await source.createRoom({ preset: sdk.Preset.PublicChat });
