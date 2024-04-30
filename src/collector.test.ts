@@ -3,7 +3,7 @@ import * as sdk from "matrix-js-sdk";
 import { MigratableRoom } from "./collector";
 import { JoinRule } from "./sdk-helpers";
 import { HistoryLossError, RoomNotJoinableError } from "./errors";
-import { checkForProblems } from "./problem-checker";
+import { checkForProblems, sortRooms } from "./problem-checker";
 
 function mockRoom(overrides = {}) {
     const roomTemplate: MigratableRoom = {
@@ -100,5 +100,36 @@ describe('problem-checker', () => {
             expect(room.problems).toHaveLength(1);
             expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
         }
+    });
+});
+
+describe('sortRooms()', () => {
+    test('can topo-sort rooms to determine the join order', () => {
+        const rooms = new Set([
+            mockRoom({ roomId: '!room3:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room2:server']) }),
+            mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room1:server']) }),
+            mockRoom({ roomId: '!room1:server' }),
+        ]);
+        const order = sortRooms(rooms);
+        expect(order.map(room => room.roomId)).toEqual(['!room1:server', '!room2:server', '!room3:server']);
+    });
+
+    test('does not break with circular dependencies', () => {
+        const rooms = new Set([
+            mockRoom({ roomId: '!room1:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room2:server']) }),
+            mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room1:server']) }),
+        ]);
+        sortRooms(rooms);
+        // no infinite loop or exception is fine, order doesn't matter since dependencies cannot be met
+    });
+
+    test('does not break with unknown dependencies', () => {
+        const rooms = new Set([
+            mockRoom({ roomId: '!room1:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room2:server']) }),
+            mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room17:server']) }),
+        ]);
+        const order = sortRooms(rooms);
+        // won't work, but is a good order of attempts
+        expect(order.map(room => room.roomId)).toEqual(['!room2:server', '!room1:server']);
     });
 });
