@@ -92,7 +92,7 @@ describe('integration', () => {
         checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
 
-        await migrateAccount(source, target, account, { migrateProfile: true });
+        await migrateAccount(source, target, account, { migrateProfile: false });
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
@@ -138,7 +138,7 @@ describe('integration', () => {
         checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
 
-        await migrateAccount(source, target, account, { migrateProfile: true });
+        await migrateAccount(source, target, account, { migrateProfile: false });
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(2);
@@ -149,7 +149,7 @@ describe('integration', () => {
         await target.setIgnoredUsers(['@dog:server']);
 
         const account = await collectAccount(source);
-        await migrateAccount(source, target, account, { migrateProfile: true });
+        await migrateAccount(source, target, account, { migrateProfile: false });
 
         // MatrixClient.getIgnoredUsers() is broken: https://github.com/matrix-org/matrix-js-sdk/issues/4176
         const ignoredUsers = await target.getAccountDataFromServer('m.ignored_user_list');
@@ -173,10 +173,28 @@ describe('integration', () => {
         expect(unavailableRoom.roomId).toEqual(room.room_id);
         expect(unavailableRoom.reason).toBeInstanceOf(RoomTombstonedError);
 
-        await migrateAccount(source, target, account, { migrateProfile: true });
+        await migrateAccount(source, target, account, { migrateProfile: false });
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
         expect(joinedRooms.joined_rooms[0]).toBe(upgradedRoom.replacement_room);
+    });
+
+    test('can migrate profile info', async () => {
+        const displayName = `Testing! ${Date.now()}`;
+        await source.setDisplayName(displayName);
+
+        const emptyGif = Buffer.from("R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=", 'base64');
+        const uploaded = await source.uploadContent(emptyGif);
+        await source.setAvatarUrl(uploaded.content_uri);
+
+        const account = await collectAccount(source);
+        assertNoProblems(account);
+
+        await migrateAccount(source, target, account, { migrateProfile: true });
+
+        const profileInfo = await target.getProfileInfo(target.getUserId()!);
+        expect(profileInfo.displayname).toEqual(displayName);
+        expect(profileInfo.avatar_url).toEqual(uploaded.content_uri);
     });
 
     describe('complaints', () => {

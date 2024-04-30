@@ -128,6 +128,24 @@ async function migrateAccountData(account: Account, target: sdk.MatrixClient) {
     }
 }
 
+async function migrateProfile(account: Account, target: sdk.MatrixClient) {
+    if (account.profileInfo.displayname) {
+        await target.setDisplayName(account.profileInfo.displayname);
+    }
+    if (account.profileInfo.avatar_url) {
+        const [, targetServerName] = target.getUserId()!.match(/^@[^:]+:(.+)$/)!;
+        const [, sourceAvatarServerName] = account.profileInfo.avatar_url.match(/^mxc:\/\/([^/]+)/)!
+        if (sourceAvatarServerName != targetServerName) {
+            const httpUrl = target.mxcUrlToHttp(account.profileInfo.avatar_url)!;
+            const resp = await fetch(httpUrl);
+            const uploaded = await target.uploadContent(await resp.arrayBuffer());
+            await target.setAvatarUrl(uploaded.content_uri);
+        } else {
+            await target.setAvatarUrl(account.profileInfo.avatar_url);
+        }
+    }
+}
+
 export async function migrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, account: Account, opts: MigrationOptions) {
     const joinOrder = sortRooms(account.migratableRooms);
 
@@ -140,5 +158,7 @@ export async function migrateAccount(source: sdk.MatrixClient, target: sdk.Matri
     }
 
     await migrateAccountData(account, target);
-    void opts; // if (opts.migrateProfile) { await migrateProfile(account, target); }
+    if (opts.migrateProfile) {
+        await migrateProfile(account, target);
+    }
 }

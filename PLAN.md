@@ -49,7 +49,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 - [x] Join restricted rooms, topo-sorted for optimal join order
 - [x] Migrate account data
 - [x] Migrate push rules
-- [ ] Optionally migrate username and avatar
+- [x] Optionally migrate username and avatar
 - [ ] Migrate (merge?) secure backup contents
 
 ## Post-migration
