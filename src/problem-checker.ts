@@ -1,11 +1,12 @@
 import * as sdk from "matrix-js-sdk";
 
 import { MigratableRoom } from "./collector";
-import { HistoryLossError, RoomNotJoinableError } from "./errors";
+import { HistoryLossError, PowerLevelUnobtainableError, RoomNotJoinableError } from "./errors";
 import { JoinRule } from "./sdk-helpers";
 
 export function checkForProblems(userId: string, rooms: Set<MigratableRoom>) {
     rooms.forEach(checkHistoryLoss);
+    rooms.forEach(room => checkPLUnobtainable(userId, room));
 
     const joinableRooms = new Set<string>();
     const roomsToCheck = new Set(rooms);
@@ -44,16 +45,14 @@ export function checkForProblems(userId: string, rooms: Set<MigratableRoom>) {
     }
 }
 
-function checkHistoryLoss(room: MigratableRoom): boolean {
+function checkHistoryLoss(room: MigratableRoom) {
     if (room.historyVisibility === sdk.HistoryVisibility.Invited || room.historyVisibility === sdk.HistoryVisibility.Joined) {
         room.problems.push(new HistoryLossError(`m.room.history_visibility is set to ${room.historyVisibility}`));
-        return true;
     }
-    return false;
 }
 
 function checkInviteUnavailable(userId: string, room: MigratableRoom): boolean {
-    const ourPL = room.powerLevels.users?.[userId] || room.powerLevels.users_default || 0;
+    const ourPL = room.powerLevels.users?.[userId] ?? room.powerLevels.users_default ?? 0;
     const requiredPL = room.powerLevels.invite ?? 0;
     if (requiredPL > ourPL) {
         room.problems.push(new RoomNotJoinableError(`Invite requires PL${requiredPL}, we have only ${ourPL}`));
@@ -61,4 +60,14 @@ function checkInviteUnavailable(userId: string, room: MigratableRoom): boolean {
     }
 
     return false;
+}
+
+function checkPLUnobtainable(userId: string, room: MigratableRoom) {
+    const ourPL = room.powerLevels.users?.[userId] ?? room.powerLevels.users_default ?? 0;
+    if (ourPL === 0) return;
+
+    const requiredPL = room.powerLevels.events?.["m.room.power_levels"] ?? room.powerLevels.state_default ?? 50;
+    if (requiredPL > ourPL) {
+        room.problems.push(new PowerLevelUnobtainableError(`Setting power levels requires PL${requiredPL}, we only have ${ourPL}`));
+    }
 }

@@ -5,6 +5,7 @@
   "author": "Tadeusz „tadzik” Sośnierz",
   "license": "GPL-3.0-or-later",
   "scripts": {
+    "ci": "yarn lint && yarn test",
     "lint": "eslint -c .eslint.config.mjs src",
     "test": "jest -c .jest.config.ts",
     "demo": "yarn tsc && node lib/index.js"

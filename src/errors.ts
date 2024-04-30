@@ -45,3 +45,9 @@ export class RoomNotJoinableError extends MigratorError {
         super("New account will not be able to join room: insufficient permissions", technicalDetails);
     }
 }
+
+export class PowerLevelUnobtainableError extends MigratorError {
+    constructor(technicalDetails: string) {
+        super("New account will lose some permissions in the room", technicalDetails);
+    }
+}

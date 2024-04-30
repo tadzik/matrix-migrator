@@ -24,7 +24,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 - [x] Room is restricted and we cannot join any of the required rooms
 - [x] Room has `m.room.history_visibility` that will make use lose old messages
 - [ ] Room is not federated (`m.room.create`->`content`->`m.federate` == false)
-- [ ] Existing PL is not possible to obtain for the new account
+- [x] Existing PL is not possible to obtain for the new account
 - [ ] Secure backup is not enabled, cannot migrate room keys etc
 
 ## Profile

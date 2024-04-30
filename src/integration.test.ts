@@ -7,6 +7,7 @@ import { createHmac } from "crypto";
 import { Account, collectAccount } from "./collector";
 import { checkForProblems } from "./problem-checker";
 import { migrateAccount } from "./migrator";
+import { HistoryLossError, PowerLevelUnobtainableError, RoomTombstonedError } from "./errors";
 
 const sourceBaseUrlVar      = 'MATRIX_MIGRATOR_INTEGRATION_TEST_SOURCE_BASE_URL';
 const sourceSharedSecretVar = 'MATRIX_MIGRATOR_INTEGRATION_TEST_SOURCE_SHARED_SECRET';
@@ -30,6 +31,7 @@ async function registerUser(serverUrl: string, sharedSecret: string, username: s
         baseUrl: serverUrl,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nonce = await sourceClient.http.request<any>(sdk.Method.Get, '/_synapse/admin/v1/register', {}, undefined, { prefix: '' });
 
     const params = {
@@ -129,6 +131,69 @@ describe('integration', () => {
         expect(Object.keys(ignoredUsers!.ignored_users).length).toBe(2);
         expect('@cat:server' in ignoredUsers!.ignored_users).toBe(true);
         expect('@dog:server' in ignoredUsers!.ignored_users).toBe(true);
+    });
+
+    test('skips upgraded rooms', async () => {
+        const room = await source.createRoom({ preset: sdk.Preset.PublicChat, room_version: '1' });
+        const upgradedRoom = await source.upgradeRoom(room.room_id, '2');
+
+        const account = await collectAccount(source);
+        expect(account.migratableRooms.size).toBe(1);
+        const collectedRoom = Array.from(account.migratableRooms)[0];
+        expect(collectedRoom.roomId).toBe(upgradedRoom.replacement_room);
+
+        checkForProblems(source.getUserId()!, account.migratableRooms);
+        expect(account.unavailableRooms.size).toEqual(1);
+        const unavailableRoom = Array.from(account.unavailableRooms)[0];
+        expect(unavailableRoom.roomId).toEqual(room.room_id);
+        expect(unavailableRoom.reason).toBeInstanceOf(RoomTombstonedError);
+
+        await migrateAccount(source, target, account, { migrateProfile: true });
+        const joinedRooms = await target.getJoinedRooms();
+        expect(joinedRooms.joined_rooms.length).toBe(1);
+        expect(joinedRooms.joined_rooms[0]).toBe(upgradedRoom.replacement_room);
+    });
+
+    describe('complaints', () => {
+        test('complains about losing history', async () => {
+            const room = await source.createRoom({
+                initial_state: [
+                    { type: "m.room.history_visibility", content: { "history_visibility": "invited" } },
+                ],
+            });
+
+            const account = await collectAccount(source);
+            checkForProblems(source.getUserId()!, account.migratableRooms);
+
+            expect(account.migratableRooms.size).toBe(1);
+            const collectedRoom = Array.from(account.migratableRooms)[0];
+            expect(collectedRoom.roomId).toBe(room.room_id);
+            expect(collectedRoom.problems).toHaveLength(1);
+            expect(collectedRoom.problems[0]).toBeInstanceOf(HistoryLossError);
+        });
+
+        test('complains if we cannot obtain the same PL', async () => {
+            const roomCreatorUser = await registerUser(sourceServerUrl, sourceSharedSecret!, `integration-test-helper-${Date.now()}`);
+            const roomCreator = sdk.createClient({
+                baseUrl: sourceServerUrl,
+                userId: roomCreatorUser.user_id,
+                accessToken: roomCreatorUser.access_token,
+                deviceId: roomCreatorUser.device_id,
+            });
+
+            const room = await roomCreator.createRoom({ preset: sdk.Preset.PrivateChat });
+            await roomCreator.invite(room.room_id, source.getUserId()!);
+            await source.joinRoom(room.room_id);
+            await roomCreator.setPowerLevel(room.room_id, source.getUserId()!, 50);
+
+            const account = await collectAccount(source);
+            checkForProblems(source.getUserId()!, account.migratableRooms);
+            expect(account.migratableRooms.size).toBe(1);
+            const collectedRoom = Array.from(account.migratableRooms)[0];
+            expect(collectedRoom.roomId).toBe(room.room_id);
+            expect(collectedRoom.problems).toHaveLength(1);
+            expect(collectedRoom.problems[0]).toBeInstanceOf(PowerLevelUnobtainableError);
+        });
     });
 });
 
