@@ -20,7 +20,7 @@ export interface MigratableRoom {
     problems: MigratorError[],
 }
 
-interface UnavailableRoom {
+export interface UnavailableRoom {
     roomId: string,
     reason: MigratorError,
 }

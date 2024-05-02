@@ -150,10 +150,14 @@ export async function migrateAccount(source: sdk.MatrixClient, target: sdk.Matri
     const joinOrder = sortRooms(account.migratableRooms);
 
     for (const room of joinOrder) {
-        if (room.joinRule === JoinRule.Invite) {
-            await joinByInvite(source, target, room.roomId);
-        } else {
-            await target.joinRoom(room.roomId);
+        try {
+            if (room.joinRule === JoinRule.Invite) {
+                await joinByInvite(source, target, room.roomId);
+            } else {
+                await target.joinRoom(room.roomId);
+            }
+        } catch (err: unknown) {
+            console.error(`Failed to join room ${room.roomId} ${room.roomName ? `(${room.roomName}) ` : ''}: ${err}`);
         }
     }
 

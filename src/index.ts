@@ -22,8 +22,8 @@ async function main() {
 
     const migrationTarget = sdk.createClient({
         baseUrl,
-        userId: '@migrationtarget1:home.tadzik.net',
-        accessToken: 'syt_bWlncmF0aW9udGFyZ2V0MQ_DObHgWNBdoAIphNKqkHQ_1UFRFw'
+        userId: process.env['MATRIX_MIGRATOR_TARGET_MXID']!,
+        accessToken: process.env['MATRIX_MIGRATOR_TARGET_ACCESS_TOKEN']!,
     });
 
 
@@ -34,7 +34,9 @@ async function main() {
     console.log('Direct messages:', account.directMessages);
     console.log('Push rules:', JSON.stringify(account.pushRules, undefined, 2));
 
-    checkForProblems(migrationSource.getUserId()!, account.migratableRooms);
+    for (const unavailableRoom of checkForProblems(migrationSource.getUserId()!, account.migratableRooms)) {
+        account.unavailableRooms.add(unavailableRoom);
+    }
 
     console.log(`Rooms available for migraton:`);
     for (const room of account.migratableRooms) {

@@ -45,13 +45,13 @@ describe('problem-checker', () => {
     test('detects problems with joining invite-only rooms', () => {
         const room = mockRoom({ joinRule: JoinRule.Invite }); 
         const rooms = new Set([room]);
-        checkForProblems(userId, rooms)
+        checkForProblems(userId, rooms);
         expect(room.problems).toHaveLength(0);
 
         room.powerLevels.invite = 50;
-        checkForProblems(userId, rooms);
-        expect(room.problems).toHaveLength(1);
-        expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
+        const unavailableRooms = checkForProblems(userId, rooms);
+        expect(unavailableRooms.size).toBe(1);
+        expect(Array.from(unavailableRooms)[0].reason).toBeInstanceOf(RoomNotJoinableError);
 
         room.problems = [];
         room.powerLevels.users = { [userId]: 50 };
@@ -64,15 +64,14 @@ describe('problem-checker', () => {
         const room = mockRoom({ joinRule: JoinRule.Restricted, requiredRooms: new Set() }); 
         const rooms = new Set([room]);
 
-        checkForProblems(userId, rooms)
-        expect(room.problems).toHaveLength(1);
-        expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
+        const unavailableRooms = checkForProblems(userId, rooms);
+        expect(unavailableRooms.size).toBe(1);
+        expect(Array.from(unavailableRooms)[0].reason).toBeInstanceOf(RoomNotJoinableError);
 
-        room.problems = [];
         room.requiredRooms!.add('!room:server');
-        checkForProblems(userId, rooms)
-        expect(room.problems).toHaveLength(1);
-        expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
+        checkForProblems(userId, rooms);
+        expect(unavailableRooms.size).toBe(1);
+        expect(Array.from(unavailableRooms)[0].reason).toBeInstanceOf(RoomNotJoinableError);
     });
 
     test('can determine a restricted room as joinable', () => {

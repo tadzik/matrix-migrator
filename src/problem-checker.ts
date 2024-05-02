@@ -1,25 +1,36 @@
 import * as sdk from "matrix-js-sdk";
 
-import { MigratableRoom } from "./collector";
-import { HistoryLossError, PowerLevelUnobtainableError, RoomNotJoinableError } from "./errors";
+import { MigratableRoom, UnavailableRoom } from "./collector";
+import { HistoryLossError, MigratorError, PowerLevelUnobtainableError, RoomNotJoinableError } from "./errors";
 import { JoinRule } from "./sdk-helpers";
 
-export function checkForProblems(userId: string, rooms: Set<MigratableRoom>) {
+// modifies `rooms`, returns rooms with fatal problems
+// XXX this API is a bit shit
+export function checkForProblems(userId: string, rooms: Set<MigratableRoom>): Set<UnavailableRoom> {
     rooms.forEach(checkHistoryLoss);
     rooms.forEach(room => checkPLUnobtainable(userId, room));
 
     const joinableRooms = new Set<string>();
     const roomsToCheck = new Set(rooms);
+    const unavailableRooms = new Set<UnavailableRoom>();
 
     const joinOrder = sortRooms(rooms);
     for (const room of joinOrder) {
         switch (room.joinRule) {
-            case JoinRule.Invite:
-                if (!checkInviteUnavailable(userId, room)) {
+            case JoinRule.Invite: {
+                const error = checkInviteUnavailable(userId, room);
+                if (error) {
+                    rooms.delete(room);
+                    unavailableRooms.add({
+                        roomId: room.roomId,
+                        reason: error,
+                    });
+                } else {
                     joinableRooms.add(room.roomId);
                 }
                 roomsToCheck.delete(room);
                 break;
+            }
             case JoinRule.Restricted:
             case JoinRule.KnockRestricted:
                 if (Array.from(room.requiredRooms ?? []).find(roomId => joinableRooms.has(roomId))) {
@@ -34,8 +45,14 @@ export function checkForProblems(userId: string, rooms: Set<MigratableRoom>) {
     }
 
     for (const room of roomsToCheck) {
-        room.problems.push(new RoomNotJoinableError("Cannot fullfill any room membership requirements"));
+        rooms.delete(room);
+        unavailableRooms.add({
+            roomId: room.roomId,
+            reason: new RoomNotJoinableError("Cannot fullfill any room membership requirements"),
+        });
     }
+
+    return unavailableRooms;
 }
 
 function checkHistoryLoss(room: MigratableRoom) {
@@ -44,15 +61,12 @@ function checkHistoryLoss(room: MigratableRoom) {
     }
 }
 
-function checkInviteUnavailable(userId: string, room: MigratableRoom): boolean {
+function checkInviteUnavailable(userId: string, room: MigratableRoom): MigratorError|undefined {
     const ourPL = room.powerLevels.users?.[userId] ?? room.powerLevels.users_default ?? 0;
     const requiredPL = room.powerLevels.invite ?? 0;
     if (requiredPL > ourPL) {
-        room.problems.push(new RoomNotJoinableError(`Invite requires PL${requiredPL}, we have only ${ourPL}`));
-        return true;
+        return new RoomNotJoinableError(`Invite requires PL${requiredPL}, we have only ${ourPL}`);
     }
-
-    return false;
 }
 
 function checkPLUnobtainable(userId: string, room: MigratableRoom) {
