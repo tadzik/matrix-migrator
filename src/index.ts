@@ -32,8 +32,7 @@ async function main() {
     console.log('Profile info:', account.profileInfo);
     console.log('Ignored users:', account.ignoredUsers);
     console.log('Direct messages:', account.directMessages);
-    // console.log('Push rules:', JSON.stringify(account.pushRules, undefined, 2));
-    console.log('Secret storage:', account.secretStorage);
+    console.log('Push rules:', JSON.stringify(account.pushRules, undefined, 2));
 
     checkForProblems(migrationSource.getUserId()!, account.migratableRooms);
 
