@@ -51,3 +51,9 @@ export class PowerLevelUnobtainableError extends MigratorError {
         super("New account will lose some permissions in the room", technicalDetails);
     }
 }
+
+export class NoKeyBackupError extends MigratorError {
+    constructor() {
+        super("Key backup not in use - new account will not have access to some encrypted messages", "Key backup not set up");
+    }
+}

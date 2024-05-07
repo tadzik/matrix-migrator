@@ -1,8 +1,14 @@
+import olm from "@matrix-org/olm";
+global.Olm = olm;
+
 import * as sdk from "matrix-js-sdk";
+import * as cryptoSdk from "@matrix-org/matrix-sdk-crypto-wasm";
+import { KeyBackupInfo, KeyBackupRoomSessions } from "matrix-js-sdk/lib/crypto-api";
+
 import Semaphore from "@chriscdn/promise-semaphore";
 
 import { HistoryVisibility, JoinRule } from "./sdk-helpers";
-import { IncompleteStateError, MigratorError, RoomTombstonedError } from "./errors";
+import { IncompleteStateError, MigratorError, NoKeyBackupError, RoomTombstonedError } from "./errors";
 
 interface ProfileInfo {
     displayname?: string,
@@ -42,6 +48,10 @@ export interface Account {
 
     migratableRooms: Set<MigratableRoom>,
     unavailableRooms: Set<UnavailableRoom>,
+
+    roomKeys?: sdk.IMegolmSessionData[],
+
+    problems: MigratorError[],
 }
 
 function getStateEvent(state: sdk.IStateEvent[], type: string): sdk.IContent {
@@ -127,6 +137,31 @@ export async function collectAccount(client: sdk.MatrixClient): Promise<Account>
         reportProgress();
     }));
 
+    const problems: MigratorError[] = [];
+    let roomKeys;
+
+    await client.initCrypto();
+    const keyBackup = await client.getCrypto()!.checkKeyBackupAndEnable();
+    if (!keyBackup) {
+        problems.push(new NoKeyBackupError());
+    } else {
+        console.log(keyBackup);
+        await client.restoreKeyBackupWithPassword('supersecretpassword!', undefined, undefined, keyBackup!.backupInfo, {});
+        /*
+        } else {
+            await client.getCrypto()!.bootstrapSecretStorage({
+                keyBackupInfo: keyBackup!.backupInfo,
+                getKeyBackupPassphrase: () => Promise.resolve(Buffer.from('supersecretpassword!')),
+            });
+            const res = await client.restoreKeyBackupWithSecretStorage(keyBackup!.backupInfo);
+            console.log(res);
+        }
+        */
+        console.log('active backup version:', await client.getCrypto()!.getActiveSessionBackupVersion());
+        roomKeys = await client.getCrypto()!.exportRoomKeys();
+        console.log(roomKeys);
+    }
+
     return {
         profileInfo,
         migratableRooms,
@@ -134,5 +169,7 @@ export async function collectAccount(client: sdk.MatrixClient): Promise<Account>
         directMessages,
         ignoredUsers,
         pushRules,
+        roomKeys,
+        problems,
     };
 }

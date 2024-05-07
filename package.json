@@ -25,6 +25,7 @@
     "typescript-eslint": "^7.7.0"
   },
   "dependencies": {
+    "@matrix-org/olm": "^3.2.15",
     "matrix-js-sdk": "^32.0.0"
   }
 }

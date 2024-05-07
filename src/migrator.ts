@@ -3,6 +3,7 @@ import * as sdk from "matrix-js-sdk";
 import { Account, DirectMessages, IgnoredUserList } from "./collector";
 import { JoinRule } from "./sdk-helpers";
 import { sortRooms } from "./problem-checker";
+import { KeyBackupInfo } from "matrix-js-sdk/lib/crypto-api";
 
 async function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
