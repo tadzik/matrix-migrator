@@ -27,8 +27,9 @@ describe('problem-checker', () => {
 
     test('ordinary room causes no issues', () => {
         const room = mockRoom();
-        checkForProblems(userId, new Set([room]));
-        expect(room.problems.length).toBe(0);
+        const [ok] = checkForProblems(userId, new Set([room]));
+        expect(ok.size).toBe(1);
+        expect(Array.from(ok)[0].problems.length).toBe(0);
     });
 
     test('detects problems with history visibility', () => {
@@ -36,9 +37,11 @@ describe('problem-checker', () => {
         for (const historyVisibility of badVisibilties) {
             const room = mockRoom({ historyVisibility });
 
-            checkForProblems(userId, new Set([room]));
-            expect(room.problems).toHaveLength(1);
-            expect(room.problems[0]).toBeInstanceOf(HistoryLossError);
+            const [ok] = checkForProblems(userId, new Set([room]));
+            const checkedRoom = Array.from(ok)[0];
+            expect(room.problems).toHaveLength(0); // we don't want to mutate original object
+            expect(checkedRoom.problems).toHaveLength(1);
+            expect(checkedRoom.problems[0]).toBeInstanceOf(HistoryLossError);
         }
     });
 
@@ -49,7 +52,7 @@ describe('problem-checker', () => {
         expect(room.problems).toHaveLength(0);
 
         room.powerLevels.invite = 50;
-        const unavailableRooms = checkForProblems(userId, rooms);
+        const [, unavailableRooms] = checkForProblems(userId, rooms);
         expect(unavailableRooms.size).toBe(1);
         expect(Array.from(unavailableRooms)[0].reason).toBeInstanceOf(RoomNotJoinableError);
 
@@ -64,7 +67,7 @@ describe('problem-checker', () => {
         const room = mockRoom({ joinRule: JoinRule.Restricted, requiredRooms: new Set() }); 
         const rooms = new Set([room]);
 
-        const unavailableRooms = checkForProblems(userId, rooms);
+        const [, unavailableRooms] = checkForProblems(userId, rooms);
         expect(unavailableRooms.size).toBe(1);
         expect(Array.from(unavailableRooms)[0].reason).toBeInstanceOf(RoomNotJoinableError);
 
@@ -81,10 +84,22 @@ describe('problem-checker', () => {
             mockRoom({ roomId: '!room3:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room2:server']) }),
         ]);
 
-        checkForProblems(userId, rooms)
-        for (const room of rooms) {
-            expect(room.problems).toHaveLength(0);
-        }
+        const [ok, nok] = checkForProblems(userId, rooms)
+        expect(ok.size).toBe(3);
+        expect(nok.size).toBe(0);
+    });
+
+    test('notices when a room is not joinable because we are planning to skip a prerequisite', () => {
+        const rooms = new Set([
+            mockRoom({ roomId: '!room1:server' }),
+            mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room1:server']) }),
+        ]);
+
+        const [ok, nok] = checkForProblems(userId, rooms, (room) => room.roomId.startsWith('!room1'));
+        expect(ok.size).toBe(1);
+        expect(Array.from(ok)[0].roomId).toBe('!room1:server');
+        expect(nok.size).toBe(1);
+        expect(Array.from(nok)[0].roomId).toBe('!room2:server');
     });
 
     test('should gracefully handle circular room requirements', () => {
@@ -93,11 +108,12 @@ describe('problem-checker', () => {
             mockRoom({ roomId: '!room2:server', joinRule: JoinRule.Restricted, requiredRooms: new Set(['!room1:server']) }),
         ]);
 
-        checkForProblems(userId, rooms)
+        const [ok, nok] = checkForProblems(userId, rooms)
 
-        for (const room of rooms) {
-            expect(room.problems).toHaveLength(1);
-            expect(room.problems[0]).toBeInstanceOf(RoomNotJoinableError);
+        expect(ok.size).toBe(0);
+        expect(nok.size).toBe(2);
+        for (const room of nok) {
+            expect(room.reason).toBeInstanceOf(RoomNotJoinableError);
         }
     });
 });

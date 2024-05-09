@@ -4,7 +4,7 @@ import Semaphore from "@chriscdn/promise-semaphore";
 import { HistoryVisibility, JoinRule } from "./sdk-helpers";
 import { IncompleteStateError, MigratorError, RoomTombstonedError } from "./errors";
 
-interface ProfileInfo {
+export interface ProfileInfo {
     displayname?: string,
     avatar_url?: string,
 }
@@ -12,6 +12,7 @@ interface ProfileInfo {
 export interface MigratableRoom {
     roomId: string,
     roomName?: string,
+    roomAvatar?: string,
     roomProfileInfo: ProfileInfo, // TODO
     joinRule: JoinRule,
     requiredRooms?: Set<string>,
@@ -22,6 +23,8 @@ export interface MigratableRoom {
 
 export interface UnavailableRoom {
     roomId: string,
+    roomName?: string,
+    roomAvatar?: string,
     reason: MigratorError,
 }
 
@@ -50,6 +53,16 @@ function getStateEvent(state: sdk.IStateEvent[], type: string): sdk.IContent {
     return eventContent;
 }
 
+export class FatalMigratorError extends Error {
+    constructor(
+        public reason: MigratorError,
+        public roomName?: string,
+        public roomAvatar?: string,
+    ) {
+        super(reason.toString());
+    }
+}
+
 async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<MigratableRoom> {
     const state = await client.roomState(roomId);
 
@@ -67,10 +80,15 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
             roomName = `DM with ${roomMembers.join(', ')}`;
         }
     }
+    const roomAvatar = state.find(ev => ev.type === 'm.room.avatar')?.content.url;
 
     const tombstoneEvent = state.find(ev => ev.type === 'm.room.tombstone');
     if (tombstoneEvent) {
-        throw new RoomTombstonedError(roomName, tombstoneEvent.content.replacement_room, tombstoneEvent.content.body);
+        throw new FatalMigratorError(
+            new RoomTombstonedError(roomName, tombstoneEvent.content.replacement_room, tombstoneEvent.content.body),
+            roomName,
+            roomAvatar,
+        );
     }
 
     const joinRuleContent = getStateEvent(state, 'm.room.join_rules');
@@ -87,6 +105,7 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
     return {
         roomId,
         roomName,
+        roomAvatar,
         roomProfileInfo: {},
         joinRule,
         requiredRooms,
@@ -96,21 +115,19 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
     };
 }
 
-export async function collectAccount(client: sdk.MatrixClient): Promise<Account> {
+export async function collectAccount(client: sdk.MatrixClient, progressTracker?: (msg: string, count?: number, total?: number) => void): Promise<Account> {
+    progressTracker?.("Collecting account data");
     const directMessages = await client.getAccountDataFromServer('m.direct') ?? {};
     const ignoredUsers   = await client.getAccountDataFromServer('m.ignored_user_list') as IgnoredUserList ?? { ignored_users: {} };
     const pushRules      = await client.getPushRules();
 
+    progressTracker?.("Collecting profile information");
     const profileInfo = await client.getProfileInfo(client.getUserId()!);
 
+    progressTracker?.("Collecting joined rooms");
     const joinedRooms = (await client.getJoinedRooms()).joined_rooms;
     let collected = 0;
-    const reportProgress = () => {
-        process.stderr.write('\r');
-        if (++collected < joinedRooms.length) {
-            process.stderr.write(`Collected ${collected}/${joinedRooms.length} rooms...`);
-        }
-    }
+    const reportProgress = () => progressTracker?.("Collecting joined rooms", ++collected, joinedRooms.length);
 
     const migratableRooms = new Set<MigratableRoom>();
     const unavailableRooms = new Set<UnavailableRoom>();
@@ -121,7 +138,18 @@ export async function collectAccount(client: sdk.MatrixClient): Promise<Account>
         await collectRoom(client, roomId).then(
             room => migratableRooms.add(room)
         ).catch(
-            reason => unavailableRooms.add({ roomId, reason })
+            err => {
+                if (err instanceof FatalMigratorError) {
+                    unavailableRooms.add({
+                        roomId,
+                        roomName: err.roomName,
+                        roomAvatar: err.roomAvatar,
+                        reason: err.reason,
+                    })
+                } else {
+                    unavailableRooms.add({ roomId, reason: err });
+                }
+            }
         );
         sem.release();
         reportProgress();

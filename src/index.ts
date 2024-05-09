@@ -27,19 +27,22 @@ async function main() {
     });
 
 
-    const account = await collectAccount(migrationSource);
+    const account = await collectAccount(migrationSource, (msg, count, total) => {
+        const progress = count ? ` (${count}/${total ?? '?'})` : '';
+        process.stderr.write('\r');
+        process.stderr.write(msg + progress + '...');
+    });
+    process.stderr.write('\n');
     
     console.log('Profile info:', account.profileInfo);
     console.log('Ignored users:', account.ignoredUsers);
     console.log('Direct messages:', account.directMessages);
-    console.log('Push rules:', JSON.stringify(account.pushRules, undefined, 2));
+    // console.log('Push rules:', JSON.stringify(account.pushRules, undefined, 2));
 
-    for (const unavailableRoom of checkForProblems(migrationSource.getUserId()!, account.migratableRooms)) {
-        account.unavailableRooms.add(unavailableRoom);
-    }
+    const [ok, nok] = checkForProblems(migrationSource.getUserId()!, account.migratableRooms);
 
     console.log(`Rooms available for migraton:`);
-    for (const room of account.migratableRooms) {
+    for (const room of ok) {
         console.log(' - ' + room.roomName ? `${room.roomName} (${room.roomId})` : room.roomId);
         if (room.problems.length > 0) {
             console.log(chalk.bold.yellow('\tIssues:'));
@@ -48,15 +51,16 @@ async function main() {
             }
         }
     }
-    for (const room of account.unavailableRooms) {
-        console.warn(chalk.bold.red(` - Room ${room.roomId} cannot be migrated: ${room.reason}`));
+    for (const room of nok) {
+        const name = room.roomName ? `${room.roomName} (${room.roomId})` : room.roomId;
+        console.warn(chalk.bold.red(` - Room ${name} cannot be migrated: ${room.reason}`));
     }
 
     console.log(`Total rooms available for migration: ${account.migratableRooms.size}`);
 
-    await migrateAccount(migrationSource, migrationTarget, account, {
-        migrateProfile: true,
-    });
+    // await migrateAccount(migrationSource, migrationTarget, account, {
+    //     migrateProfile: true,
+    // });
 }
 
 main().then(

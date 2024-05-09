@@ -228,10 +228,10 @@ describe('integration', () => {
             });
 
             const account = await collectAccount(source);
-            checkForProblems(source.getUserId()!, account.migratableRooms);
+            const [ok] = checkForProblems(source.getUserId()!, account.migratableRooms);
 
-            expect(account.migratableRooms.size).toBe(1);
-            const collectedRoom = Array.from(account.migratableRooms)[0];
+            expect(ok.size).toBe(1);
+            const collectedRoom = Array.from(ok)[0];
             expect(collectedRoom.roomId).toBe(room.room_id);
             expect(collectedRoom.problems).toHaveLength(1);
             expect(collectedRoom.problems[0]).toBeInstanceOf(HistoryLossError);
@@ -252,9 +252,9 @@ describe('integration', () => {
             await roomCreator.setPowerLevel(room.room_id, source.getUserId()!, 50);
 
             const account = await collectAccount(source);
-            checkForProblems(source.getUserId()!, account.migratableRooms);
-            expect(account.migratableRooms.size).toBe(1);
-            const collectedRoom = Array.from(account.migratableRooms)[0];
+            const [ok] = checkForProblems(source.getUserId()!, account.migratableRooms);
+            expect(ok.size).toBe(1);
+            const collectedRoom = Array.from(ok)[0];
             expect(collectedRoom.roomId).toBe(room.room_id);
             expect(collectedRoom.problems).toHaveLength(1);
             expect(collectedRoom.problems[0]).toBeInstanceOf(PowerLevelUnobtainableError);

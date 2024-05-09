@@ -9,8 +9,9 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 
 ## Prep (UI)
 
-- [ ] Obtain access keys to both accounts (TBD)
-- [ ] Obtain C-S endpoints for both servers automagically
+- [x] Obtain access keys to both accounts
+  - [ ] Support SSO
+- [x] Obtain C-S endpoints for both servers automagically
 
 ## Rooms
 
@@ -38,7 +39,8 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 
 ## Pre-migration (UI)
 
-- [ ] Select which rooms to migrate (by last activity, space membership maybe?)
+- [x] Select which rooms to migrate
+  - [ ] (by last activity, space membership maybe?)
 - [ ] Trim encryption room keys to the rooms we'll be migrating
   
 ## Migration itself

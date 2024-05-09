@@ -4,13 +4,27 @@ import { MigratableRoom, UnavailableRoom } from "./collector";
 import { HistoryLossError, MigratorError, PowerLevelUnobtainableError, RoomNotJoinableError } from "./errors";
 import { JoinRule } from "./sdk-helpers";
 
-// modifies `rooms`, returns rooms with fatal problems
-// XXX this API is a bit shit
-export function checkForProblems(userId: string, rooms: Set<MigratableRoom>): Set<UnavailableRoom> {
-    rooms.forEach(checkHistoryLoss);
-    rooms.forEach(room => checkPLUnobtainable(userId, room));
+export function checkForProblems(userId: string, rooms: Set<MigratableRoom>, shouldSkipRoom?: (room: MigratableRoom) => boolean): [Set<MigratableRoom>, Set<UnavailableRoom>] {
+    const roomProblems = new Map<string, MigratorError[]>();
+    for (const room of rooms) {
+        roomProblems.set(room.roomId, []);
+    }
 
-    const joinableRooms = new Set<string>();
+    for (const room of rooms) {
+        const err = checkHistoryLoss(room);
+        if (err) {
+            roomProblems.get(room.roomId)!.push(err);
+        }
+    }
+
+    for (const room of rooms) {
+        const err = checkPLUnobtainable(userId, room);
+        if (err) {
+            roomProblems.get(room.roomId)!.push(err);
+        }
+    }
+
+    const joinableRooms = new Map<string, MigratableRoom>();
     const roomsToCheck = new Set(rooms);
     const unavailableRooms = new Set<UnavailableRoom>();
 
@@ -20,44 +34,54 @@ export function checkForProblems(userId: string, rooms: Set<MigratableRoom>): Se
             case JoinRule.Invite: {
                 const error = checkInviteUnavailable(userId, room);
                 if (error) {
-                    rooms.delete(room);
                     unavailableRooms.add({
                         roomId: room.roomId,
+                        roomName: room.roomName,
+                        roomAvatar: room.roomAvatar,
                         reason: error,
                     });
                 } else {
-                    joinableRooms.add(room.roomId);
+                    joinableRooms.set(room.roomId, room);
                 }
                 roomsToCheck.delete(room);
                 break;
             }
             case JoinRule.Restricted:
             case JoinRule.KnockRestricted:
-                if (Array.from(room.requiredRooms ?? []).find(roomId => joinableRooms.has(roomId))) {
-                    joinableRooms.add(room.roomId);
+                if (Array.from(room.requiredRooms ?? []).find(roomId => joinableRooms.has(roomId) && !shouldSkipRoom?.(joinableRooms.get(roomId)!))) {
+                    joinableRooms.set(room.roomId, room);
                     roomsToCheck.delete(room);
                 }
                 break;
             default:
-                joinableRooms.add(room.roomId);
+                joinableRooms.set(room.roomId, room);
                 roomsToCheck.delete(room);
         }
     }
 
     for (const room of roomsToCheck) {
-        rooms.delete(room);
         unavailableRooms.add({
             roomId: room.roomId,
+            roomName: room.roomName,
+            roomAvatar: room.roomAvatar,
             reason: new RoomNotJoinableError("Cannot fullfill any room membership requirements"),
         });
     }
 
-    return unavailableRooms;
+    const migratableRooms = new Set<MigratableRoom>();
+    for (const [roomId, room] of joinableRooms.entries()) {
+        migratableRooms.add({
+            ...room,
+            problems: roomProblems.get(roomId)!,
+        });
+    }
+
+    return [migratableRooms, unavailableRooms];
 }
 
-function checkHistoryLoss(room: MigratableRoom) {
+function checkHistoryLoss(room: MigratableRoom): MigratorError|undefined {
     if (room.historyVisibility === sdk.HistoryVisibility.Invited || room.historyVisibility === sdk.HistoryVisibility.Joined) {
-        room.problems.push(new HistoryLossError(`m.room.history_visibility is set to ${room.historyVisibility}`));
+        return new HistoryLossError(`m.room.history_visibility is set to ${room.historyVisibility}`);
     }
 }
 
@@ -69,13 +93,13 @@ function checkInviteUnavailable(userId: string, room: MigratableRoom): MigratorE
     }
 }
 
-function checkPLUnobtainable(userId: string, room: MigratableRoom) {
+function checkPLUnobtainable(userId: string, room: MigratableRoom): MigratorError|undefined {
     const ourPL = room.powerLevels.users?.[userId] ?? room.powerLevels.users_default ?? 0;
     if (ourPL === 0) return;
 
     const requiredPL = room.powerLevels.events?.["m.room.power_levels"] ?? room.powerLevels.state_default ?? 50;
     if (requiredPL > ourPL) {
-        room.problems.push(new PowerLevelUnobtainableError(`Setting power levels requires PL${requiredPL}, we only have ${ourPL}`));
+        return new PowerLevelUnobtainableError(`Setting power levels requires PL${requiredPL}, we only have ${ourPL}`);
     }
 }
 
