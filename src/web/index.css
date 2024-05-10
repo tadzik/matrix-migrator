@@ -1,0 +1,66 @@
+body {
+    margin: 40px auto;
+    max-width: 800px;
+    line-height: 1.6;
+    font-size: 18px;
+    padding: 0 10px
+}
+
+h1, h2, h3 {
+    line-height: 1.2;
+}
+
+a {
+    color: blue;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: rgba(33, 38, 44, .9);
+        color: white;
+    }
+
+    a {
+        color: gold;
+    }
+}
+
+span.error {
+    color: red;
+    font-weight: bold;
+}
+
+span.error span.technical-details {
+    cursor: pointer;
+}
+
+div.profile-card {
+    display: flex;
+    align-items: center;
+}
+
+div.profile-card img {
+    width: 3rem;
+    height: 3rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
+}
+
+div.profile-card div.img-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: x-large;
+    width: 3rem;
+    height: 3rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
+}
+
+div.profile-card span.display-name {
+    font-weight: bold;
+}
+
+div.profile-card span.entity-id{
+    font-size: small;
+}
