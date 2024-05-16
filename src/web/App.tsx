@@ -8,8 +8,8 @@ interface State {
     migration?: MigrationRequest,
 }
 
-export default class App extends React.Component<{}, State> {
-    constructor(props: never) {
+export default class App extends React.Component<unknown, State> {
+    constructor() {
         super({});
         this.state = {};
     }

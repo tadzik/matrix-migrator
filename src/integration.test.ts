@@ -1,12 +1,13 @@
 import * as sdk from "matrix-js-sdk";
 import loglevel from "loglevel";
 import { logger as sdkLogger } from 'matrix-js-sdk/lib/logger';
+import TypedEmitter from "typed-emitter"
 
 import { createHmac } from "crypto";
 
 import { Account, collectAccount } from "./collector";
 import { checkForProblems, sortRooms } from "./problem-checker";
-import { migrateAccount } from "./migrator";
+import { MigrationEvents, migrateAccount } from "./migrator";
 import { HistoryLossError, PowerLevelUnobtainableError, RoomTombstonedError } from "./errors";
 
 const sourceBaseUrlVar      = 'MATRIX_MIGRATOR_INTEGRATION_TEST_SOURCE_BASE_URL';
@@ -81,6 +82,21 @@ describe('integration', () => {
         });
     });    
 
+    async function migrationFinished(events: TypedEmitter<MigrationEvents>) {
+        return new Promise<void>((resolve, reject) => {
+            events.on('room', (_roomId, _status, err) => {
+                if (err) reject(err);
+            });
+            events.on('accountData', (_status, err) => {
+                if (err) reject(err);
+            });
+            events.on('profile', (_status, err) => {
+                if (err) reject(err);
+            });
+            events.on('finished', resolve);
+        });
+    }
+
     test('can migrate public room membership', async () => {
         const room = await source.createRoom({ preset: sdk.Preset.PublicChat });
 
@@ -92,10 +108,10 @@ describe('integration', () => {
         checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
 
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
@@ -113,20 +129,20 @@ describe('integration', () => {
         checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
 
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
         expect(joinedRooms.joined_rooms[0]).toBe(room.room_id);
 
         // should not die
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
     });
 
     test('can restricted room membership', async () => {
@@ -147,10 +163,10 @@ describe('integration', () => {
         checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
 
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(2);
@@ -161,10 +177,10 @@ describe('integration', () => {
         await target.setIgnoredUsers(['@dog:server']);
 
         const account = await collectAccount(source);
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
 
         // MatrixClient.getIgnoredUsers() is broken: https://github.com/matrix-org/matrix-js-sdk/issues/4176
         const ignoredUsers = await target.getAccountDataFromServer('m.ignored_user_list');
@@ -188,10 +204,10 @@ describe('integration', () => {
         expect(unavailableRoom.roomId).toEqual(room.room_id);
         expect(unavailableRoom.reason).toBeInstanceOf(RoomTombstonedError);
 
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
         expect(joinedRooms.joined_rooms[0]).toBe(upgradedRoom.replacement_room);
@@ -208,10 +224,10 @@ describe('integration', () => {
         const account = await collectAccount(source);
         assertNoProblems(account);
 
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
 
         const profileInfo = await target.getProfileInfo(target.getUserId()!);
         expect(profileInfo.displayname).toEqual(displayName);
@@ -232,10 +248,10 @@ describe('integration', () => {
 
         const account = await collectAccount(source);
         assertNoProblems(account);
-        await migrateAccount(source, target, {
+        await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        });
+        }));
 
         const pushRules = await target.getPushRules();
         expect(pushRules.global.override!.find(r => r.rule_id === '.m.rule.is_room_mention')!.enabled).toEqual(false);

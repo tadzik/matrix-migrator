@@ -4,6 +4,9 @@ import { DirectMessages, IgnoredUserList, MigratableRoom, ProfileInfo } from "./
 import { JoinRule, catchNotFound, patiently } from "./sdk-helpers";
 import { sleep } from "matrix-js-sdk/lib/utils";
 
+import EventEmitter from "events"
+import TypedEmitter from "typed-emitter"
+
 export interface MigrationRequest {
     profileInfo?:   ProfileInfo,
     directMessages: DirectMessages,
@@ -24,14 +27,14 @@ async function joinByInvite(source: sdk.MatrixClient, target: sdk.MatrixClient, 
         await source.invite(roomId, target.getUserId()!);
     });
 
-    let lastError;
+    let lastError: unknown;
     const attempts = 5;
     for (let i = 0; i < attempts; i++) {
         try {
             await target.joinRoom(roomId);
             console.debug(`Successfully joined ${roomId} after an invite`);
             return;
-        } catch (err: unknown) {
+        } catch (err) {
             lastError = err;
             console.debug(`Failed to join invite-only room ${roomId} (${err}), waiting a bit...`);
             await sleep((i + 1) * 1000);
@@ -122,21 +125,58 @@ async function migrateProfile(profileInfo: ProfileInfo, target: sdk.MatrixClient
     }
 }
 
-export async function migrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, request: MigrationRequest) {
+enum Status {
+    InProgress,
+    Finished,
+    Error,
+}
+
+export type MigrationEvents = {
+    room: (roomId: string, status: Status, error?: Error) => void,
+    accountData: (status: Status, error?: Error) => void,
+    profile: (status: Status, error?: Error) => void,
+    finished: () => void,
+};
+
+async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, request: MigrationRequest, events: TypedEmitter<MigrationEvents>) {
     for (const room of request.rooms) {
+        events.emit('room', room.roomId, Status.InProgress);
         try {
             if (room.joinRule === JoinRule.Invite) {
                 await joinByInvite(source, target, room.roomId);
             } else {
                 await target.joinRoom(room.roomId);
             }
-        } catch (err: unknown) {
+            events.emit('room', room.roomId, Status.Finished);
+        } catch (err) {
             console.error(`Failed to join room ${room.roomId} ${room.roomName ? `(${room.roomName}) ` : ''}: ${err}`);
+            events.emit('room', room.roomId, Status.Error, err as Error);
         }
     }
 
-    await migrateAccountData(request, target);
-    if (request.profileInfo) {
-        await migrateProfile(request.profileInfo!, target);
+    try {
+        events.emit('accountData', Status.InProgress);
+        await migrateAccountData(request, target);
+        events.emit('accountData', Status.Finished);
+    } catch (err) {
+        events.emit('accountData', Status.Error, err as Error);
     }
+
+    if (request.profileInfo) {
+        try {
+            events.emit('profile', Status.InProgress);
+            await migrateProfile(request.profileInfo!, target);
+            events.emit('profile', Status.Finished);
+        } catch (err) {
+            events.emit('profile', Status.Error, err as Error);
+        }
+    }
+
+    events.emit('finished');
+}
+
+export function migrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, request: MigrationRequest): TypedEmitter<MigrationEvents> {
+    const events = new EventEmitter() as TypedEmitter<MigrationEvents>;
+    void doMigrateAccount(source, target, request, events);
+    return events;
 }
