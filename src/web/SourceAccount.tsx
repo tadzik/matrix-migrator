@@ -22,6 +22,7 @@ interface State {
     loadedAccount?: Account,
     selectableRooms: MigratableRoom[],
     unavailableRooms: UnavailableRoom[],
+    roomsToMigrate: MigratableRoom[],
     skippedRooms: { [roomId: string]: boolean },
 }
 
@@ -32,6 +33,7 @@ export default class SourceAccount extends React.Component<Props, State> {
         this.state = {
             accountState: AccountState.NeedsLogin,
             skippedRooms: {},
+            roomsToMigrate: [],
             selectableRooms: [],
             unavailableRooms: [],
         };
@@ -41,7 +43,9 @@ export default class SourceAccount extends React.Component<Props, State> {
         console.warn("Will skip", this.state.skippedRooms);
         const [ok, nok] = checkForProblems(this.state.client!.getUserId()!, account.migratableRooms, (room) => this.state.skippedRooms[room.roomId]);
         account.unavailableRooms.forEach(room => nok.add(room));
+        const roomsToMigrate = sortRooms(ok).filter(room => !this.state.skippedRooms[room.roomId]);
         this.setState({
+            roomsToMigrate,
             selectableRooms: sortRooms(ok),
             unavailableRooms: Array.from(nok),
         });
@@ -80,24 +84,34 @@ export default class SourceAccount extends React.Component<Props, State> {
     }
 
     render() {
+        let inner: React.ReactElement;
+
         switch (this.state.accountState) {
             case AccountState.NeedsLogin:
-                return <LoginForm
+                inner = <LoginForm
                     onClientLoggedIn={ this.setClient.bind(this) }
-                />
+                />;
+                break;
             case AccountState.FetchingAccountInfo:
-                return <>
+                inner = <>
                     { this.state.loadingProgress }
                 </>;
+                break;
             case AccountState.AccountLoaded:
-                return <AccountDetailsSelector
+                inner = <AccountDetailsSelector
                     profileInfo={ this.state.loadedAccount!.profileInfo }
                     selectableRooms={ this.state.selectableRooms }
                     unavailableRooms={ this.state.unavailableRooms }
                     client={ this.state.client! }
                     onSkippedRoomsUpdated={ this.updateSkippedRooms.bind(this) }
                     onSwitchAccount={ this.switchAccount.bind(this) }
-                />
+                />;
+                break;
         }
+
+        return <section>
+            <h2> Your old account </h2>
+            { inner }
+        </section>;
     }
 }

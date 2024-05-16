@@ -39,7 +39,6 @@ export default class SourceAccount extends React.Component<Props, State> {
  
     render() {
         return <div className="account-selector">
-            <h2> Your account </h2>
             <ProfileCard 
                 entityId={ this.props.client.getUserId() ?? '' }
                 displayName={ this.props.profileInfo.displayname }

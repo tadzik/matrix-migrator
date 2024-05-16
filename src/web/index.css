@@ -1,6 +1,5 @@
 body {
     margin: 40px auto;
-    max-width: 800px;
     line-height: 1.6;
     font-size: 18px;
     padding: 0 10px
@@ -23,6 +22,11 @@ a {
     a {
         color: gold;
     }
+}
+
+main {
+    display: flex;
+    justify-content: space-evenly;
 }
 
 span.error {

@@ -1,15 +1,19 @@
+import React from 'react';
+
 import SourceAccount from './SourceAccount';
+import TargetAccount from './TargetAccount';
 
 function App() {
   return (
-    <div>
+    <>
       <header>
         <h1> Matrix Migrator </h1>
       </header>
       <main>
         <SourceAccount />
+        <TargetAccount />
       </main>
-    </div>
+    </>
   );
 }
 
