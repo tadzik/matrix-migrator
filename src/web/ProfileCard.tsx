@@ -4,7 +4,6 @@ interface Props {
     avatarUrl?: string;
     displayName?: string;
     entityId: string;
-    children?: React.ReactNode;
 }
 
 export default function ProfileCard(props: Props) {
@@ -18,6 +17,5 @@ export default function ProfileCard(props: Props) {
                 <span className="entity-id"> { props.entityId } </span>
             </div>
         </div>
-        { false && props.children }
     </div>
 }

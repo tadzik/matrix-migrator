@@ -46,3 +46,27 @@ export namespace HistoryVisibility {
         }
     }
 }
+
+export async function patiently<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+        return await fn();
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (err.errcode === 'M_LIMIT_EXCEEDED') {
+            const timeout = err.data.retry_after_ms;
+            console.debug(`Got rate limited, sleeping for the requested ${timeout/1000}s`);
+            return new Promise(resolve => {
+                setTimeout(() => patiently(fn).then(resolve), timeout);
+            });
+        } else {
+            throw err;
+        }
+    }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function catchNotFound(err: any) {
+    if (err.errcode === 'M_NOT_FOUND') {
+        return undefined;
+    }
+    throw err;
+}

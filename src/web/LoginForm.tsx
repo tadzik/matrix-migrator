@@ -8,6 +8,7 @@ enum LoginState {
 }
 
 interface Props {
+    formId: string;
     onClientLoggedIn: (client: sdk.MatrixClient) => void;
 }
 
@@ -31,10 +32,11 @@ export default class LoginForm extends React.Component<Props, State> {
         };
     }
 
-    async login(ev: React.FormEvent<HTMLFormElement>) {
-        ev.preventDefault();
+    async login(ev?: React.FormEvent<HTMLFormElement>) {
+        ev?.preventDefault();
         this.setState({ error: undefined });
         const userId = this.mxidRef.current!.value;
+        localStorage.setItem(this.props.formId, userId);
         const password = this.passwordRef.current!.value;
 
         let baseUrl: string;
@@ -57,15 +59,19 @@ export default class LoginForm extends React.Component<Props, State> {
             const loginResponse = await client.loginWithPassword(userId, password);
             console.debug(loginResponse);
             this.props.onClientLoggedIn(client);
-        } catch (err: any) {
+        } catch (err) {
             this.setState({ error: err.toString() });
         }
     }
 
     // TODO just for testing, just for now
     componentDidMount(): void {
-        this.mxidRef.current!.value = '@testuser:home.tadzik.net';
         this.passwordRef.current!.value = 'testuser';
+        const stored = localStorage.getItem(this.props.formId);
+        if (stored) {
+            this.mxidRef.current!.value = stored;
+            this.login();
+        }
     }
 
     render() {

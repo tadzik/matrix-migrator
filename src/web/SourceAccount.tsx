@@ -5,6 +5,7 @@ import { Account, MigratableRoom, UnavailableRoom, collectAccount } from "../col
 import LoginForm from './LoginForm';
 import AccountDetailsSelector from './AccountDetailsSelector';
 import { checkForProblems, sortRooms } from '../problem-checker';
+import { MigrationRequest } from '../migrator';
 
 enum AccountState {
     NeedsLogin,
@@ -13,6 +14,7 @@ enum AccountState {
 }
 
 interface Props {
+    onMigrationConfigured: (migration: MigrationRequest) => void,
 }
 
 interface State {
@@ -43,9 +45,11 @@ export default class SourceAccount extends React.Component<Props, State> {
         console.warn("Will skip", this.state.skippedRooms);
         const [ok, nok] = checkForProblems(this.state.client!.getUserId()!, account.migratableRooms, (room) => this.state.skippedRooms[room.roomId]);
         account.unavailableRooms.forEach(room => nok.add(room));
-        const roomsToMigrate = sortRooms(ok).filter(room => !this.state.skippedRooms[room.roomId]);
+        this.props.onMigrationConfigured({
+            ...account,
+            rooms: sortRooms(ok).filter(room => !this.state.skippedRooms[room.roomId]),
+        });
         this.setState({
-            roomsToMigrate,
             selectableRooms: sortRooms(ok),
             unavailableRooms: Array.from(nok),
         });
@@ -66,7 +70,7 @@ export default class SourceAccount extends React.Component<Props, State> {
     async fetchAccountInfo() {
         this.setState({ accountState: AccountState.FetchingAccountInfo });
 
-        let account = await collectAccount(this.state.client!, (msg, count, total) => {
+        const account = await collectAccount(this.state.client!, (msg, count, total) => {
             const progress = count ? ` (${count}/${total ?? '?'})` : '';
             this.setState({ loadingProgress: msg + progress });
         });
@@ -89,6 +93,7 @@ export default class SourceAccount extends React.Component<Props, State> {
         switch (this.state.accountState) {
             case AccountState.NeedsLogin:
                 inner = <LoginForm
+                    formId="sourceAccount"
                     onClientLoggedIn={ this.setClient.bind(this) }
                 />;
                 break;
@@ -109,7 +114,7 @@ export default class SourceAccount extends React.Component<Props, State> {
                 break;
         }
 
-        return <section>
+        return <section id="source-account">
             <h2> Your old account </h2>
             { inner }
         </section>;

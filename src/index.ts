@@ -3,7 +3,6 @@ import loglevel from "loglevel";
 import * as sdk from "matrix-js-sdk";
 import { logger as sdkLogger } from 'matrix-js-sdk/lib/logger';
 import { collectAccount } from "./collector";
-import { migrateAccount } from "./migrator";
 import { checkForProblems } from "./problem-checker";
 
 
@@ -19,13 +18,6 @@ async function main() {
         userId,
         accessToken,
     });
-
-    const migrationTarget = sdk.createClient({
-        baseUrl,
-        userId: process.env['MATRIX_MIGRATOR_TARGET_MXID']!,
-        accessToken: process.env['MATRIX_MIGRATOR_TARGET_ACCESS_TOKEN']!,
-    });
-
 
     const account = await collectAccount(migrationSource, (msg, count, total) => {
         const progress = count ? ` (${count}/${total ?? '?'})` : '';
@@ -57,10 +49,6 @@ async function main() {
     }
 
     console.log(`Total rooms available for migration: ${account.migratableRooms.size}`);
-
-    // await migrateAccount(migrationSource, migrationTarget, account, {
-    //     migrateProfile: true,
-    // });
 }
 
 main().then(

@@ -1,39 +1,15 @@
 import * as sdk from "matrix-js-sdk";
 
-import { Account, DirectMessages, IgnoredUserList } from "./collector";
-import { JoinRule } from "./sdk-helpers";
-import { sortRooms } from "./problem-checker";
+import { DirectMessages, IgnoredUserList, MigratableRoom, ProfileInfo } from "./collector";
+import { JoinRule, catchNotFound, patiently } from "./sdk-helpers";
+import { sleep } from "matrix-js-sdk/lib/utils";
 
-async function sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function patiently<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-        return await fn();
-    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-        if (err.errcode === 'M_LIMIT_EXCEEDED') {
-            const timeout = err.data.retry_after_ms;
-            console.debug(`Got rate limited, sleeping for the requested ${timeout/1000}s`);
-            return new Promise(resolve => {
-                setTimeout(() => patiently(fn).then(resolve), timeout);
-            });
-        } else {
-            throw err;
-        }
-    }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function catchNotFound(err: any) {
-    if (err.errcode === 'M_NOT_FOUND') {
-        return undefined;
-    }
-    throw err;
-}
-
-interface MigrationOptions {
-    migrateProfile: boolean,
+export interface MigrationRequest {
+    profileInfo?:   ProfileInfo,
+    directMessages: DirectMessages,
+    ignoredUsers:   IgnoredUserList,
+    pushRules:      sdk.IPushRules,
+    rooms:          MigratableRoom[],
 }
 
 async function joinByInvite(source: sdk.MatrixClient, target: sdk.MatrixClient, roomId: string) {
@@ -97,7 +73,7 @@ export function mergeIgnoredUserLists(sourceIgnoredUsers: IgnoredUserList, targe
     };
 }
 
-async function migrateAccountData(account: Account, target: sdk.MatrixClient) {
+async function migrateAccountData(account: MigrationRequest, target: sdk.MatrixClient) {
     const sourceDirectMessages = account.directMessages;
     const targetDirectMessages = await target.getAccountDataFromServer('m.direct') ?? {};
     await target.setAccountData('m.direct', mergeDirectMessages(sourceDirectMessages, targetDirectMessages));
@@ -128,28 +104,26 @@ async function migrateAccountData(account: Account, target: sdk.MatrixClient) {
     }
 }
 
-async function migrateProfile(account: Account, target: sdk.MatrixClient) {
-    if (account.profileInfo.displayname) {
-        await target.setDisplayName(account.profileInfo.displayname);
+async function migrateProfile(profileInfo: ProfileInfo, target: sdk.MatrixClient) {
+    if (profileInfo.displayname) {
+        await target.setDisplayName(profileInfo.displayname);
     }
-    if (account.profileInfo.avatar_url) {
+    if (profileInfo.avatar_url) {
         const [, targetServerName] = target.getUserId()!.match(/^@[^:]+:(.+)$/)!;
-        const [, sourceAvatarServerName] = account.profileInfo.avatar_url.match(/^mxc:\/\/([^/]+)/)!
+        const [, sourceAvatarServerName] = profileInfo.avatar_url.match(/^mxc:\/\/([^/]+)/)!
         if (sourceAvatarServerName != targetServerName) {
-            const httpUrl = target.mxcUrlToHttp(account.profileInfo.avatar_url)!;
+            const httpUrl = target.mxcUrlToHttp(profileInfo.avatar_url)!;
             const resp = await fetch(httpUrl);
             const uploaded = await target.uploadContent(await resp.arrayBuffer());
             await target.setAvatarUrl(uploaded.content_uri);
         } else {
-            await target.setAvatarUrl(account.profileInfo.avatar_url);
+            await target.setAvatarUrl(profileInfo.avatar_url);
         }
     }
 }
 
-export async function migrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, account: Account, opts: MigrationOptions) {
-    const joinOrder = sortRooms(account.migratableRooms);
-
-    for (const room of joinOrder) {
+export async function migrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, request: MigrationRequest) {
+    for (const room of request.rooms) {
         try {
             if (room.joinRule === JoinRule.Invite) {
                 await joinByInvite(source, target, room.roomId);
@@ -161,8 +135,8 @@ export async function migrateAccount(source: sdk.MatrixClient, target: sdk.Matri
         }
     }
 
-    await migrateAccountData(account, target);
-    if (opts.migrateProfile) {
-        await migrateProfile(account, target);
+    await migrateAccountData(request, target);
+    if (request.profileInfo) {
+        await migrateProfile(request.profileInfo!, target);
     }
 }

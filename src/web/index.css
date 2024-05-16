@@ -25,8 +25,22 @@ a {
 }
 
 main {
-    display: flex;
-    justify-content: space-evenly;
+    display: grid;
+    grid-template-areas:
+        "source-account target-account"
+        "migration-button migration-button";
+}
+
+section#source-account {
+    grid-area: source-account;
+}
+
+section#target-account {
+    grid-area: target-account;
+}
+
+button#migration-button {
+    grid-area: migration-button;
 }
 
 span.error {
