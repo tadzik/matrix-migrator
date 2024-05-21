@@ -46,29 +46,22 @@ export default class SourceAccount extends React.Component<Props, State> {
             />
             <button type="button" onClick={ this.props.onSwitchAccount }> Use another account </button>
             <h2> Rooms </h2>
-            <table>
-                <tbody>
-                    {
-                        this.props.selectableRooms.map(room => <React.Fragment key={ room.roomId }>
-                            <tr>
-                                <td> <input type="checkbox" name="room" checked={ !this.state.skipRoom[room.roomId] } onChange={ this.toggleRoom.bind(this, room.roomId) } /> </td>
-                                <td>
-                                    <ProfileCard
-                                        entityId={ room.roomId }
-                                        displayName={ room.roomName }
-                                        avatarUrl={ room.roomAvatar && sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar)  }
-                                    >
-                                    </ProfileCard>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td> </td>
-                                <td> <RoomDetails room={ room } /> </td>
-                                </tr>
-                        </React.Fragment>)
-                    }
-                </tbody>
-            </table>
+            <ul>
+            {
+                this.props.selectableRooms.map(room => <li key={ room.roomId } className="room-info">
+                    <input type="checkbox" name="room"
+                           checked={ !this.state.skipRoom[room.roomId] }
+                           onChange={ this.toggleRoom.bind(this, room.roomId) }
+                    />
+                    <ProfileCard
+                        entityId={ room.roomId }
+                        displayName={ room.roomName }
+                        avatarUrl={ room.roomAvatar && sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar)  }
+                    />
+                    <RoomDetails room={ room } />
+                </li>)
+            }
+            </ul>
             { this.props.unavailableRooms.length > 0 && <h2> Rooms impossible to migrate </h2> }
             {
                 Array.from(this.props.unavailableRooms).map(room =>

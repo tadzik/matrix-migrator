@@ -42,15 +42,16 @@ export default class SourceAccount extends React.Component<Props, State> {
             { !this.state.profileInfo && <> Loading profile info... </> }
             <button type="button" onClick={ this.props.onSwitchAccount }> Use another account </button>
             <h2> Rooms </h2>
-            { this.props.migration && this.props.migration.rooms.map(room => <>
+            <ul>
+            { this.props.migration && this.props.migration.rooms.map(room => <li key={ room.roomId }>
                 <ProfileCard
-                    key={ room.roomId }
                     entityId={ room.roomId }
                     displayName={ room.roomName }
                     avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar) }
                 />
                 { this.state.errors[room.roomId] && <span className="error"> { this.state.errors[room.roomId].toString() } </span> }
-            </>) }
+            </li>) }
+            </ul>
        </div>;
     }
 }

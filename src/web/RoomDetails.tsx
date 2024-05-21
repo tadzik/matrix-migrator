@@ -7,9 +7,9 @@ interface Props {
 }
 
 export default function RoomDetails(props: Props) {
-    return <>
+    return <div className='room-details'>
         { 
             props.room.problems && props.room.problems.map(problem => <MigratorErrorComponent error={ problem } />)
         }
-    </>;
+    </div>;
 }
