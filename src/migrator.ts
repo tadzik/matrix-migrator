@@ -126,9 +126,9 @@ async function migrateProfile(profileInfo: ProfileInfo, target: sdk.MatrixClient
 }
 
 export enum Status {
-    InProgress,
-    Finished,
-    Error,
+    InProgress = "In progress",
+    Finished = "Finished",
+    Error = "Error",
 }
 
 export type MigrationEvents = {
@@ -171,11 +171,16 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
             events.emit('profile', Status.Error, err as Error);
         }
     }
+    await sleep(500);
 
     events.emit('finished');
 }
 
-export function migrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClient, request: MigrationRequest): TypedEmitter<MigrationEvents> {
+export function migrateAccount(
+    source: sdk.MatrixClient,
+    target: sdk.MatrixClient,
+    request: MigrationRequest
+): TypedEmitter<MigrationEvents> {
     const events = new EventEmitter() as TypedEmitter<MigrationEvents>;
     void doMigrateAccount(source, target, request, events);
     return events;

@@ -1,27 +1,26 @@
 import React from 'react';
 import * as sdk from "matrix-js-sdk";
 import { ProfileInfo } from "../collector";
-import { MigrationRequest } from "../migrator";
 import ProfileCard from './ProfileCard';
+import { MigrationState } from './MigrationTracker';
+import { MigratorError } from '../errors';
+import MigratorErrorComponent from './MigratorError';
 
 interface Props {
     client: sdk.MatrixClient;
     onSwitchAccount: () => void;
-    migration?: MigrationRequest;
+    migration?: MigrationState;
 }
 
 interface State {
     profileInfo?: ProfileInfo,
-    errors: { [roomId: string]: Error },
 }
 
-export default class SourceAccount extends React.Component<Props, State> {
+export default class MigrationViewer extends React.Component<Props, State> {
     constructor(props: Props) {
         super(props);
 
-        this.state = {
-            errors: {},
-        };
+        this.state = {};
         void this.fetchProfileInfo();
     }
 
@@ -49,7 +48,8 @@ export default class SourceAccount extends React.Component<Props, State> {
                     displayName={ room.roomName }
                     avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar) }
                 />
-                { this.state.errors[room.roomId] && <span className="error"> { this.state.errors[room.roomId].toString() } </span> }
+                { room.status?.toString() ?? "Pending" }
+                { room.error && <MigratorErrorComponent error={ room.error } /> }
             </li>) }
             </ul>
        </div>;

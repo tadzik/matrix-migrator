@@ -2,8 +2,8 @@ import React from 'react';
 import * as sdk from "matrix-js-sdk";
 
 import LoginForm from './LoginForm';
-import MigrationStatus from './MigrationStatus';
-import { MigrationRequest } from '../migrator';
+import { MigrationState } from './MigrationTracker';
+import MigrationViewer from './MigrationViewer';
 
 enum AccountState {
     NeedsLogin,
@@ -12,7 +12,8 @@ enum AccountState {
 }
 
 interface Props {
-    migration?: MigrationRequest,
+    migrationState?: MigrationState,
+    onAccountSet: (account: sdk.MatrixClient) => void,
 }
 
 interface State {
@@ -42,8 +43,10 @@ export default class TargetAccount extends React.Component<Props, State> {
     }
 
     async fetchAccountInfo() {
-        this.setState({ accountState: AccountState.FetchingAccountInfo });
+        this.props.onAccountSet(this.state.client!);
 
+        this.setState({ accountState: AccountState.FetchingAccountInfo });
+        // ...? TODO
         this.setState({ accountState: AccountState.AccountLoaded });
     }
 
@@ -61,10 +64,10 @@ export default class TargetAccount extends React.Component<Props, State> {
                 inner = <> Loading account info </>;
                 break;
             case AccountState.AccountLoaded:
-                inner = <MigrationStatus
+                inner = <MigrationViewer
                     client={ this.state.client! }
                     onSwitchAccount={ this.switchAccount.bind(this) }
-                    migration={ this.props.migration }
+                    migration={ this.props.migrationState }
                 />;
                 break;
         }

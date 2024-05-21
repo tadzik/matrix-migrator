@@ -14,6 +14,7 @@ enum AccountState {
 }
 
 interface Props {
+    onAccountSet: (account: sdk.MatrixClient) => void,
     onMigrationConfigured: (migration: MigrationRequest) => void,
 }
 
@@ -57,6 +58,7 @@ export default class SourceAccount extends React.Component<Props, State> {
 
     setClient(client: sdk.MatrixClient) {
         this.setState({ client }, () => {
+            this.props.onAccountSet(client);
             this.fetchAccountInfo();
         });
     }
@@ -78,8 +80,6 @@ export default class SourceAccount extends React.Component<Props, State> {
 
         this.checkAccount(account);
         this.setState({ accountState: AccountState.AccountLoaded });
-
-        await this.state.client!.logout();
     }
 
     updateSkippedRooms(skippedRooms: { [roomId: string]: boolean }) {
