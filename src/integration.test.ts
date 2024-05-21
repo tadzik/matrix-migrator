@@ -7,7 +7,7 @@ import { createHmac } from "crypto";
 
 import { Account, collectAccount } from "./collector";
 import { checkForProblems, sortRooms } from "./problem-checker";
-import { MigrationEvents, migrateAccount } from "./migrator";
+import { MigrationEvents, Status, migrateAccount } from "./migrator";
 import { HistoryLossError, PowerLevelUnobtainableError, RoomTombstonedError } from "./errors";
 
 const sourceBaseUrlVar      = 'MATRIX_MIGRATOR_INTEGRATION_TEST_SOURCE_BASE_URL';
@@ -82,10 +82,21 @@ describe('integration', () => {
         });
     });    
 
-    async function migrationFinished(events: TypedEmitter<MigrationEvents>) {
+    async function migrationFinished(
+        events: TypedEmitter<MigrationEvents>,
+        expect: (okRooms: Set<string>, badRooms: Map<string, Error>) => void,
+    ) {
         return new Promise<void>((resolve, reject) => {
-            events.on('room', (_roomId, _status, err) => {
-                if (err) reject(err);
+            const okRooms = new Set<string>();
+            const badRooms = new Map<string, Error>();
+            events.on('room', (roomId, status, err) => {
+                if (status === Status.InProgress) return;
+
+                if (status === Status.Finished) {
+                    okRooms.add(roomId);
+                } else {
+                    badRooms.set(roomId, err!);
+                }
             });
             events.on('accountData', (_status, err) => {
                 if (err) reject(err);
@@ -93,7 +104,10 @@ describe('integration', () => {
             events.on('profile', (_status, err) => {
                 if (err) reject(err);
             });
-            events.on('finished', resolve);
+            events.on('finished', () => {
+                expect(okRooms, badRooms);
+                resolve();
+            });
         });
     }
 
@@ -111,7 +125,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(1));
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
@@ -132,7 +146,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(1));
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
@@ -142,7 +156,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(1));
     });
 
     test('can restricted room membership', async () => {
@@ -166,7 +180,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(2));
 
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(2);
@@ -180,7 +194,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(0));
 
         // MatrixClient.getIgnoredUsers() is broken: https://github.com/matrix-org/matrix-js-sdk/issues/4176
         const ignoredUsers = await target.getAccountDataFromServer('m.ignored_user_list');
@@ -207,7 +221,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(1));
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
         expect(joinedRooms.joined_rooms[0]).toBe(upgradedRoom.replacement_room);
@@ -227,7 +241,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(0));
 
         const profileInfo = await target.getProfileInfo(target.getUserId()!);
         expect(profileInfo.displayname).toEqual(displayName);
@@ -251,7 +265,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
-        }));
+        }), expectRoomsMigrated(0));
 
         const pushRules = await target.getPushRules();
         expect(pushRules.global.override!.find(r => r.rule_id === '.m.rule.is_room_mention')!.enabled).toEqual(false);
@@ -307,5 +321,12 @@ function assertNoProblems(account: Account) {
         expect(room.problems).toEqual([]);
     }
     expect(account.unavailableRooms.size).toBe(0);
+}
+
+function expectRoomsMigrated(count: number) {
+    return (okRooms: Set<string>, badRooms: Map<string, Error>) => {
+        expect(okRooms.size).toEqual(count);
+        expect(badRooms.size).toEqual(0);
+    }
 }
 

@@ -125,7 +125,7 @@ async function migrateProfile(profileInfo: ProfileInfo, target: sdk.MatrixClient
     }
 }
 
-enum Status {
+export enum Status {
     InProgress,
     Finished,
     Error,
