@@ -64,13 +64,11 @@ export default class LoginForm extends React.Component<Props, State> {
         }
     }
 
-    // TODO just for testing, just for now
     componentDidMount(): void {
-        this.passwordRef.current!.value = 'testuser';
-        const stored = localStorage.getItem(this.props.formId);
-        if (stored) {
-            this.mxidRef.current!.value = stored;
-            this.login();
+        const env = (import.meta as any).env ?? {};
+        if (env[`VITE_${this.props.formId}_MXID`]) {
+            this.mxidRef.current!.value = env[`VITE_${this.props.formId}_MXID`];
+            this.passwordRef.current!.value = env[`VITE_${this.props.formId}_PASSWORD`];
         }
     }
 
