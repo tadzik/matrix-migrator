@@ -24,11 +24,17 @@ a {
     }
 }
 
+header {
+    display: flex;
+    justify-content: center;
+}
+
 main {
     display: grid;
     grid-template-areas:
         "source-account target-account"
         "migration-button migration-button";
+    grid-template-columns: 1fr 1fr;
 }
 
 section#source-account {
@@ -110,4 +116,36 @@ li.room-info .profile-card {
 
 li.room-info .room-details {
     grid-area: room-details;
+}
+
+@media (prefers-color-scheme: dark) {
+    .spinner {
+        color: white;
+    }
+}
+
+.spinner, .spinner:after {
+  box-sizing: border-box;
+}
+
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+}
+
+.spinner:after {
+  content: " ";
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 0.18rem solid currentColor;
+  border-color: currentColor transparent currentColor transparent;
+  animation: spinner 1.2s linear infinite;
+}
+
+@keyframes spinner {
+  0%   { transform: rotate(0deg);   }
+  100% { transform: rotate(360deg); }
 }

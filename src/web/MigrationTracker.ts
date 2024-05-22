@@ -4,13 +4,15 @@ import { MigratableRoom } from "../collector";
 import { MigrationRequest, migrateAccount, Status as MigrationStatus } from "../migrator";
 
 export interface MigrationState {
-    finished: boolean,
+    finished: boolean;
+    lastMessage: string;
     rooms: (MigratableRoom & { status?: MigrationStatus, error?: Error })[];
 }
 
 // Wraps the event emitter returned by migrateAccount
 // into something that can be displayed in MigrationViewer
 export class MigrationTracker {
+    private messages: string[] = [];
     private roomStatus = new Map<string, MigrationStatus>();
     private roomError = new Map<string, Error>();
     private isFinished = false;
@@ -22,6 +24,10 @@ export class MigrationTracker {
         private onStateChanged: (state: MigrationState) => void
     ) {
         const migration = migrateAccount(source, target, request);
+        migration.on('message', msg => {
+            this.messages.push(msg);
+            this.rebuildState();
+        });
         migration.on('room', (roomId, status, error) => {
             this.roomStatus.set(roomId, status);
             if (error) {
@@ -40,7 +46,8 @@ export class MigrationTracker {
     private rebuildState(): void {
         const state: MigrationState = {
             finished: this.isFinished,
-            rooms: []
+            lastMessage: this.messages[this.messages.length - 1],
+            rooms: [],
         };
         for (const room of this.request.rooms) {
             state.rooms.push({

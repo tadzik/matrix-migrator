@@ -14,8 +14,8 @@ interface State {
 }
 
 export default class App extends React.Component<unknown, State> {
-    constructor() {
-        super({});
+    constructor(props: never) {
+        super(props);
         this.state = {};
     }
 
@@ -59,7 +59,7 @@ export default class App extends React.Component<unknown, State> {
                         id="migration-button"
                         type="button"
                         onClick={ this.migrate.bind(this) }
-                        disabled={ !!this.state.migrationState }
+                        disabled={ !!this.state.migrationState && !this.state.migrationState.finished }
                     >
                         Migrate account
                     </button>

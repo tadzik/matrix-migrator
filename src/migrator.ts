@@ -132,6 +132,7 @@ export enum Status {
 }
 
 export type MigrationEvents = {
+    message: (msg: string) => void,
     room: (roomId: string, status: Status, error?: Error) => void,
     accountData: (status: Status, error?: Error) => void,
     profile: (status: Status, error?: Error) => void,
@@ -143,8 +144,10 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
         events.emit('room', room.roomId, Status.InProgress);
         try {
             if (room.joinRule === JoinRule.Invite) {
+                events.emit('message', `Inviting the new account to ${room.roomName ?? room.roomId}`);
                 await joinByInvite(source, target, room.roomId);
             } else {
+                events.emit('message', `Joining room ${room.roomName ?? room.roomId}`);
                 await target.joinRoom(room.roomId);
             }
             events.emit('room', room.roomId, Status.Finished);
@@ -155,6 +158,7 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
     }
 
     try {
+        events.emit('message', `Migrating account data`);
         events.emit('accountData', Status.InProgress);
         await migrateAccountData(request, target);
         events.emit('accountData', Status.Finished);
@@ -164,6 +168,7 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
 
     if (request.profileInfo) {
         try {
+            events.emit('message', `Migrating profile`);
             events.emit('profile', Status.InProgress);
             await migrateProfile(request.profileInfo!, target);
             events.emit('profile', Status.Finished);
@@ -171,7 +176,6 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
             events.emit('profile', Status.Error, err as Error);
         }
     }
-    await sleep(500);
 
     events.emit('finished');
 }

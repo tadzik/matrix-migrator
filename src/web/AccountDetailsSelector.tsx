@@ -65,7 +65,7 @@ export default class SourceAccount extends React.Component<Props, State> {
             { this.props.unavailableRooms.length > 0 && <h2> Rooms impossible to migrate </h2> }
             {
                 Array.from(this.props.unavailableRooms).map(room =>
-                    <>
+                    <div key={ room.roomId }>
                         <ProfileCard
                             key={ room.roomId }
                             entityId={ room.roomId }
@@ -74,7 +74,7 @@ export default class SourceAccount extends React.Component<Props, State> {
                         >
                         </ProfileCard>
                         <MigratorErrorComponent error={ room.reason } />
-                    </>
+                    </div>
                 )
             }
         </div>;
