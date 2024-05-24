@@ -31,7 +31,9 @@ async function joinByInvite(source: sdk.MatrixClient, target: sdk.MatrixClient, 
     const attempts = 5;
     for (let i = 0; i < attempts; i++) {
         try {
-            await target.joinRoom(roomId);
+            await patiently(async () => {
+                await target.joinRoom(roomId);
+            });
             console.debug(`Successfully joined ${roomId} after an invite`);
             return;
         } catch (err) {
@@ -148,7 +150,9 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
                 await joinByInvite(source, target, room.roomId);
             } else {
                 events.emit('message', `Joining room ${room.roomName ?? room.roomId}`);
-                await target.joinRoom(room.roomId);
+                await patiently(async () => {
+                    await target.joinRoom(room.roomId);
+                });
             }
             events.emit('room', room.roomId, Status.Finished);
         } catch (err) {
