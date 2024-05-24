@@ -51,44 +51,48 @@ export default class SourceAccount extends React.Component<Props, State> {
                 avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, this.props.profileInfo.avatar_url)  }
             />
             <button type="button" onClick={ this.props.onSwitchAccount }> Use another account </button>
-            <h2> Options </h2>
+            <section>
+                <h2> Options </h2>
                 <input type="checkbox" id="migrateProfile"
                        checked={ this.props.migrateProfile }
                        onChange={ this.toggleMigrateProfile.bind(this) }
                 />
                 <label htmlFor="migrateProfile"> Migrate profile </label>
-            <h2> Rooms </h2>
-            <ul>
-            {
-                this.props.selectableRooms.map(room => <li key={ room.roomId } className="room-info">
-                    <input type="checkbox" name="room"
-                           checked={ !this.state.skipRoom[room.roomId] }
-                           onChange={ this.toggleRoom.bind(this, room.roomId) }
-                    />
-                    <ProfileCard
-                        entityId={ room.roomId }
-                        displayName={ room.roomName }
-                        avatarUrl={ room.roomAvatar && sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar)  }
-                    />
-                    <RoomDetails room={ room } />
-                </li>)
-            }
-            </ul>
-            { this.props.unavailableRooms.length > 0 && <h2> Rooms impossible to migrate </h2> }
-            {
-                Array.from(this.props.unavailableRooms).map(room =>
-                    <div key={ room.roomId }>
+            </section>
+            <section>
+                <h2> Rooms </h2>
+                <ul>
+                {
+                    this.props.selectableRooms.map(room => <li key={ room.roomId } className="room-info">
+                        <input type="checkbox" name="room"
+                               checked={ !this.state.skipRoom[room.roomId] }
+                               onChange={ this.toggleRoom.bind(this, room.roomId) }
+                        />
                         <ProfileCard
-                            key={ room.roomId }
                             entityId={ room.roomId }
                             displayName={ room.roomName }
-                            avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar) }
-                        >
-                        </ProfileCard>
-                        <MigratorErrorComponent error={ room.reason } />
-                    </div>
-                )
-            }
+                            avatarUrl={ room.roomAvatar && sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar)  }
+                        />
+                        <RoomDetails room={ room } />
+                    </li>)
+                }
+                </ul>
+                { this.props.unavailableRooms.length > 0 && <h2> Rooms impossible to migrate </h2> }
+                {
+                    Array.from(this.props.unavailableRooms).map(room =>
+                        <div key={ room.roomId }>
+                            <ProfileCard
+                                key={ room.roomId }
+                                entityId={ room.roomId }
+                                displayName={ room.roomName }
+                                avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar) }
+                            >
+                            </ProfileCard>
+                            <MigratorErrorComponent error={ room.reason } />
+                        </div>
+                    )
+                }
+            </section>
         </div>;
     }
 }

@@ -39,43 +39,49 @@ export default class MigrationViewer extends React.Component<Props, State> {
             { !this.state.profileInfo && <> Loading profile info... </> }
             <button type="button" onClick={ this.props.onSwitchAccount }> Use another account </button>
             { this.props.migration && <>
-                <em>
-                    { !this.props.migration.finished && <h3> <span className="spinner" /> { this.props.migration.lastMessage ?? 'Working...' } </h3> }
-                    { this.props.migration.finished && <h3> All done! </h3> }
-                </em>
-                <h3> Not rooms </h3>
-                <ul>
-                    <li>
-                        <div className="profile-card">
-                            <div className="img-fallback"></div>
-                            <div> <span className="display-name"> Account data </span> </div>
-                        </div>
-                        { this.props.migration.accountData.status?.toString() ?? "Pending" }
-                        { this.props.migration.accountData.error && <MigratorErrorComponent error={ this.props.migration.accountData.error } /> }
-                    </li>
-                    { this.props.migration.request.profileInfo && <li>
-                        <div className="profile-card">
-                            <div className="img-fallback"></div>
-                            <div> <span className="display-name"> Profile </span> </div>
-                        </div>
-                        { this.props.migration.profile?.status?.toString() ?? "Pending" }
-                        { this.props.migration.profile?.error && <MigratorErrorComponent error={ this.props.migration.profile.error } /> }
-                    </li> }
-                </ul>
-                <h3> Rooms </h3>
-                <ul>
-                {
-                    this.props.migration.rooms.map(room => <li key={ room.roomId }>
-                        <ProfileCard
-                            entityId={ room.roomId }
-                            displayName={ room.roomName }
-                            avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar) }
-                        />
-                        { room.status?.toString() ?? "Pending" }
-                        { room.error && <MigratorErrorComponent error={ room.error } /> }
-                    </li>)
-                 }
-                </ul>
+                <section>
+                    <em>
+                        { !this.props.migration.finished && <h3> <span className="spinner" /> { this.props.migration.lastMessage ?? 'Working...' } </h3> }
+                        { this.props.migration.finished && <h3> All done! </h3> }
+                    </em>
+                </section>
+                <section>
+                    <h2> Not rooms </h2>
+                    <ul>
+                        <li>
+                            <div className="profile-card">
+                                <div className="img-fallback"></div>
+                                <div> <span className="display-name"> Account data </span> </div>
+                            </div>
+                            { this.props.migration.accountData.status?.toString() ?? "Pending" }
+                            { this.props.migration.accountData.error && <MigratorErrorComponent error={ this.props.migration.accountData.error } /> }
+                        </li>
+                        { this.props.migration.request.profileInfo && <li>
+                            <div className="profile-card">
+                                <div className="img-fallback"></div>
+                                <div> <span className="display-name"> Profile </span> </div>
+                            </div>
+                            { this.props.migration.profile?.status?.toString() ?? "Pending" }
+                            { this.props.migration.profile?.error && <MigratorErrorComponent error={ this.props.migration.profile.error } /> }
+                        </li> }
+                    </ul>
+                </section>
+                <section>
+                    <h2> Rooms </h2>
+                    <ul>
+                    {
+                        this.props.migration.rooms.map(room => <li key={ room.roomId }>
+                            <ProfileCard
+                                entityId={ room.roomId }
+                                displayName={ room.roomName }
+                                avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, room.roomAvatar) }
+                            />
+                            { room.status?.toString() ?? "Pending" }
+                            { room.error && <MigratorErrorComponent error={ room.error } /> }
+                        </li>)
+                     }
+                    </ul>
+                </section>
             </> }
        </div>;
     }
