@@ -51,15 +51,17 @@ async function joinByInvite(source: sdk.MatrixClient, target: sdk.MatrixClient, 
  *
  * Exported for testing purposes, not intended to be used directly.
  */
-export function mergeDirectMessages(sourceDMs: DirectMessages, targetDMs: DirectMessages): DirectMessages {
+export function mergeDirectMessages(sourceDMs: DirectMessages, targetDMs: DirectMessages, migratedRooms: Set<string>): DirectMessages {
     const dms: DirectMessages = JSON.parse(JSON.stringify(targetDMs));
 
     for (const key in sourceDMs) {
+        const newDms = sourceDMs[key].filter(roomId => migratedRooms.has(roomId));
+        if (newDms.length === 0) continue;
         if (!(key in dms)) {
             dms[key] = [];
         }
         // Remove duplicates. These makes migration safe to reapply
-        dms[key] = Array.from(new Set([...dms[key], ...sourceDMs[key]]));
+        dms[key] = Array.from(new Set([...dms[key], ...newDms]));
     }
 
     return dms;
@@ -81,7 +83,7 @@ export function mergeIgnoredUserLists(sourceIgnoredUsers: IgnoredUserList, targe
 async function migrateAccountData(account: MigrationRequest, target: sdk.MatrixClient) {
     const sourceDirectMessages = account.directMessages;
     const targetDirectMessages = await target.getAccountDataFromServer('m.direct') ?? {};
-    await target.setAccountData('m.direct', mergeDirectMessages(sourceDirectMessages, targetDirectMessages));
+    await target.setAccountData('m.direct', mergeDirectMessages(sourceDirectMessages, targetDirectMessages, new Set(account.rooms.map(r => r.roomId))));
 
     const sourceIgnoredUsers = account.ignoredUsers;
     const targetIgnoredUsers = await target.getAccountDataFromServer('m.ignored_user_list') as IgnoredUserList ?? { ignored_users: {} };

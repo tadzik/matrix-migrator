@@ -5,7 +5,7 @@ import TypedEmitter from "typed-emitter"
 
 import { createHmac } from "crypto";
 
-import { Account, collectAccount } from "./collector";
+import { Account, DirectMessages, collectAccount } from "./collector";
 import { checkForProblems, sortRooms } from "./problem-checker";
 import { MigrationEvents, Status, migrateAccount } from "./migrator";
 import { HistoryLossError, PowerLevelUnobtainableError, RoomTombstonedError } from "./errors";
@@ -274,6 +274,27 @@ describe('integration', () => {
         expect(pushRules.global.override!.find(r => r.rule_id === '.m.rule.is_room_mention')!.enabled).toEqual(false);
         expect(pushRules.global.content!.find(r => r.rule_id === 'cookies')!.enabled).toEqual(true);
         expect(pushRules.global.content!.find(r => r.rule_id === 'disabledcookies')!.enabled).toEqual(false);
+    });
+
+    test('only migrate the relevant subset of m.direct', async () => {
+        const dmRoom = await source.createRoom({
+            preset: sdk.Preset.PrivateChat,
+        });
+        await source.invite(dmRoom.room_id, target.getUserId()!);
+        const dms: DirectMessages = {
+            [target.getUserId()!]: [dmRoom.room_id],
+        };
+        await source.setAccountData('m.direct', dms);
+
+        const account = await collectAccount(source);
+        assertNoProblems(account);
+        await migrationFinished(migrateAccount(source, target, {
+            ...account,
+            rooms: [],
+        }), expectRoomsMigrated(0));
+
+        const newDms = await target.getAccountDataFromServer('m.direct') ?? {};
+        expect(newDms).toEqual({});
     });
 
     describe('complaints', () => {
