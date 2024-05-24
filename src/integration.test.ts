@@ -152,6 +152,9 @@ describe('integration', () => {
         expect(joinedRooms.joined_rooms.length).toBe(1);
         expect(joinedRooms.joined_rooms[0]).toBe(room.room_id);
 
+        const powerLevels = await target.getStateEvent(room.room_id, 'm.room.power_levels', '');
+        expect(powerLevels.users[target.getUserId()!]).toEqual(powerLevels.users[source.getUserId()!]);
+
         // should not die
         await migrationFinished(migrateAccount(source, target, {
             ...account,

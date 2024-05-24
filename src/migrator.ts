@@ -127,6 +127,15 @@ async function migrateProfile(profileInfo: ProfileInfo, target: sdk.MatrixClient
     }
 }
 
+async function migratePowerLevel(source: sdk.MatrixClient, target: sdk.MatrixClient, room: MigratableRoom) {
+    const sourcePL = room.powerLevels.users?.[source.getUserId()!] ?? room.powerLevels.users_default ?? 0;
+    const currentPLs = await target.getStateEvent(room.roomId, 'm.room.power_levels', '') as sdk.IPowerLevelsContent;
+    const currentTargetPL = currentPLs.users?.[target.getUserId()!] ?? room.powerLevels.users_default ?? 0;
+    if (sourcePL !== currentTargetPL) {
+        await source.setPowerLevel(room.roomId, target.getUserId()!, sourcePL);
+    }
+}
+
 export enum Status {
     InProgress = "In progress",
     Finished = "Finished",
@@ -154,6 +163,9 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
                     await target.joinRoom(room.roomId);
                 });
             }
+
+            await migratePowerLevel(source, target, room);
+
             events.emit('room', room.roomId, Status.Finished);
         } catch (err) {
             console.error(`Failed to join room ${room.roomId} ${room.roomName ? `(${room.roomName}) ` : ''}: ${err}`);
