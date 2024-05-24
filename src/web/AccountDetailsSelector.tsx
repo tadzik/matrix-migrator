@@ -7,9 +7,11 @@ import MigratorErrorComponent from './MigratorError';
 
 interface Props {
     client: sdk.MatrixClient;
+    migrateProfile: boolean;
     profileInfo: ProfileInfo,
     selectableRooms: MigratableRoom[];
     unavailableRooms: UnavailableRoom[];
+    onMigrateProfileChanged: (migrateProfile: boolean) => void;
     onSwitchAccount: () => void;
     onSkippedRoomsUpdated: (skippedRooms: { [roomId: string]: boolean }) => void;
 }
@@ -36,6 +38,10 @@ export default class SourceAccount extends React.Component<Props, State> {
             },
         }, () => this.props.onSkippedRoomsUpdated(this.state.skipRoom));
     }
+
+    toggleMigrateProfile(ev: ChangeEvent<HTMLInputElement>) {
+        this.props.onMigrateProfileChanged(ev.target.checked);
+    }
  
     render() {
         return <div className="account-selector">
@@ -45,6 +51,12 @@ export default class SourceAccount extends React.Component<Props, State> {
                 avatarUrl={ sdk.getHttpUriForMxc(this.props.client.baseUrl, this.props.profileInfo.avatar_url)  }
             />
             <button type="button" onClick={ this.props.onSwitchAccount }> Use another account </button>
+            <h2> Options </h2>
+                <input type="checkbox" id="migrateProfile"
+                       checked={ this.props.migrateProfile }
+                       onChange={ this.toggleMigrateProfile.bind(this) }
+                />
+                <label htmlFor="migrateProfile"> Migrate profile </label>
             <h2> Rooms </h2>
             <ul>
             {

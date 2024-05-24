@@ -65,6 +65,7 @@ export default class LoginForm extends React.Component<Props, State> {
     }
 
     componentDidMount(): void {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const env = (import.meta as any).env ?? {};
         if (env[`VITE_${this.props.formId}_MXID`]) {
             this.mxidRef.current!.value = env[`VITE_${this.props.formId}_MXID`];

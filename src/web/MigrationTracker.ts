@@ -3,10 +3,18 @@ import * as sdk from "matrix-js-sdk";
 import { MigratableRoom } from "../collector";
 import { MigrationRequest, migrateAccount, Status as MigrationStatus } from "../migrator";
 
+interface ItemStatus {
+    status?: MigrationStatus,
+    error?: Error,
+}
+
 export interface MigrationState {
     finished: boolean;
     lastMessage: string;
-    rooms: (MigratableRoom & { status?: MigrationStatus, error?: Error })[];
+    rooms: (MigratableRoom & ItemStatus)[];
+    accountData: ItemStatus;
+    profile?: ItemStatus;
+    request: MigrationRequest,
 }
 
 // Wraps the event emitter returned by migrateAccount
@@ -15,6 +23,8 @@ export class MigrationTracker {
     private messages: string[] = [];
     private roomStatus = new Map<string, MigrationStatus>();
     private roomError = new Map<string, Error>();
+    private accountData: ItemStatus = {};
+    private profile?: ItemStatus;
     private isFinished = false;
 
     constructor(
@@ -35,8 +45,14 @@ export class MigrationTracker {
             }
             this.rebuildState();
         });
-        migration.on('accountData', (status, error) => { /* TODO */ });
-        migration.on('profile', (status, error) => { /* TODO */ });
+        migration.on('accountData', (status, error) => {
+            this.accountData = { status, error };
+            this.rebuildState();
+        });
+        migration.on('profile', (status, error) => {
+            this.profile = { status, error };
+            this.rebuildState();
+        });
         migration.on('finished', () => {
             this.isFinished = true;
             this.rebuildState();
@@ -45,8 +61,11 @@ export class MigrationTracker {
 
     private rebuildState(): void {
         const state: MigrationState = {
+            accountData: this.accountData,
             finished: this.isFinished,
             lastMessage: this.messages[this.messages.length - 1],
+            profile: this.profile,
+            request: this.request,
             rooms: [],
         };
         for (const room of this.request.rooms) {
