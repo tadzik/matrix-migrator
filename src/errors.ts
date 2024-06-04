@@ -1,3 +1,5 @@
+import { t } from 'i18next';
+
 /** Migrator should not be using technical jargon, but errors should be as detailed as possible for development purposes.
  * Therefore, each of our errors has a user-friendly description, but stores the technical details also.
  */
@@ -12,7 +14,14 @@ export class MigratorError extends Error {
 
 export class RoomTombstonedError extends MigratorError {
     constructor(name: string, replacementRoom: string, reason: string) {
-        super(`Room has been upgraded`, `Room ${name} has been replaced by ${replacementRoom} ("${reason}")`);
+        super(
+            t(`Room has been upgraded`),
+            t('Room {{name}} has been replaced by {{replacementRoom}} ("{{reason}}")', {
+                'name': name,
+                'replacementRoom': replacementRoom,
+                'reason': reason,
+            })
+        );
     }
 }
 

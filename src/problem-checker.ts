@@ -1,4 +1,5 @@
 import * as sdk from "matrix-js-sdk";
+import { t } from 'i18next';
 
 import { MigratableRoom, UnavailableRoom } from "./collector";
 import { HistoryLossError, MigratorError, PowerLevelUnobtainableError, RoomNotJoinableError } from "./errors";
@@ -89,7 +90,9 @@ function checkInviteUnavailable(userId: string, room: MigratableRoom): MigratorE
     const ourPL = room.powerLevels.users?.[userId] ?? room.powerLevels.users_default ?? 0;
     const requiredPL = room.powerLevels.invite ?? 0;
     if (requiredPL > ourPL) {
-        return new RoomNotJoinableError(`Invite requires PL${requiredPL}, we have only ${ourPL}`);
+        return new RoomNotJoinableError(t('Invite requires PL{{requiredPL}}, we have only {{ourPL}}', {
+            requiredPL, ourPL
+        }));
     }
 }
 

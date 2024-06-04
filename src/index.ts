@@ -1,14 +1,28 @@
 import chalk from "chalk";
+import i18next from 'i18next';
 import loglevel from "loglevel";
 import * as sdk from "matrix-js-sdk";
 import { logger as sdkLogger } from 'matrix-js-sdk/lib/logger';
 import { collectAccount } from "./collector";
 import { checkForProblems } from "./problem-checker";
 
-
 const baseUrl = process.env['MATRIX_MIGRATOR_SOURCE_BASE_URL']!;
 const userId = process.env['MATRIX_MIGRATOR_SOURCE_MXID']!;
-const accessToken = process.env['MATRIX_MIGRATOR_SOURCE_ACCESS_TOKEN']!;
+const password = process.env['MATRIX_MIGRATOR_SOURCE_PASSWORD']!;
+
+i18next.init({
+    lng: 'pl',
+    debug: true,
+    resources: {
+        pl: {
+            translation: {
+  "Room has been upgraded": "",
+  "Room {{name}} has been replaced by {{replacementRoom}} (\"{{reason}}\")": "",
+  "Invite requires PL{{requiredPL}}, we have only {{ourPL}}": "Zapraszanie wymaga PL{{requiredPL}}, mamy tylko {{ourPL}}"
+  }
+        }
+    }
+});
 
 async function main() {
     sdkLogger.setLevel(loglevel.levels.INFO);
@@ -16,8 +30,8 @@ async function main() {
     const migrationSource = sdk.createClient({
         baseUrl,
         userId,
-        accessToken,
     });
+    await migrationSource.loginWithPassword(userId, password);
 
     const account = await collectAccount(migrationSource, (msg, count, total) => {
         const progress = count ? ` (${count}/${total ?? '?'})` : '';
