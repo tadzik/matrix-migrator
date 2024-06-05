@@ -36,7 +36,6 @@ export default class LoginForm extends React.Component<Props, State> {
         ev?.preventDefault();
         this.setState({ error: undefined });
         const userId = this.mxidRef.current!.value;
-        localStorage.setItem(this.props.formId, userId);
         const password = this.passwordRef.current!.value;
 
         let baseUrl: string;
