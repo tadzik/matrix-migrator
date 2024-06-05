@@ -69,6 +69,7 @@ export default class LoginForm extends React.Component<Props, State> {
         if (env[`VITE_${this.props.formId}_MXID`]) {
             this.mxidRef.current!.value = env[`VITE_${this.props.formId}_MXID`];
             this.passwordRef.current!.value = env[`VITE_${this.props.formId}_PASSWORD`];
+            void this.login();
         }
     }
 

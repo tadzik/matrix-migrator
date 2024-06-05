@@ -33,7 +33,8 @@ main {
     display: grid;
     grid-template-areas:
         "source-account target-account"
-        "migration-button migration-button";
+        "migration-button migration-button"
+        "migration-summary  migration-caveats";
     grid-template-columns: 1fr 1fr;
 }
 
@@ -47,6 +48,17 @@ section#target-account {
 
 button#migration-button {
     grid-area: migration-button;
+}
+
+section#migration-summary {
+    grid-area: migration-summary;
+    display: flex;
+    justify-content: center;
+}
+section#migration-caveats {
+    grid-area: migration-caveats;
+    display: flex;
+    justify-content: center;
 }
 
 span.error {

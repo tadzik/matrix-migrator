@@ -3,7 +3,7 @@ import * as sdk from "matrix-js-sdk";
 import { Account, MigratableRoom, UnavailableRoom, collectAccount } from "../collector";
 
 import LoginForm from './LoginForm';
-import AccountDetailsSelector from './AccountDetailsSelector';
+import AccountDetailsSelector, { MigrationOptions } from './AccountDetailsSelector';
 import { checkForProblems, sortRooms } from '../problem-checker';
 import { MigrationRequest } from '../migrator';
 
@@ -23,7 +23,7 @@ interface State {
     client?: sdk.MatrixClient,
     loadingProgress?: string,
     loadedAccount?: Account,
-    migrateProfile: boolean,
+    migrationOptions: MigrationOptions,
     selectableRooms: MigratableRoom[],
     unavailableRooms: UnavailableRoom[],
     roomsToMigrate: MigratableRoom[],
@@ -36,7 +36,12 @@ export default class SourceAccount extends React.Component<Props, State> {
 
         this.state = {
             accountState: AccountState.NeedsLogin,
-            migrateProfile: false,
+            migrationOptions: {
+                addOldMxidNotification: false,
+                leaveMigratedRooms: false,
+                migrateProfile: false,
+                renameOldAccount: false,
+            },
             skippedRooms: {},
             roomsToMigrate: [],
             selectableRooms: [],
@@ -50,8 +55,8 @@ export default class SourceAccount extends React.Component<Props, State> {
         account.unavailableRooms.forEach(room => nok.add(room));
         this.props.onMigrationConfigured({
             ...account,
-            profileInfo: this.state.migrateProfile ? account.profileInfo : undefined,
             rooms: sortRooms(ok).filter(room => !this.state.skippedRooms[room.roomId]),
+            options: this.state.migrationOptions,
         });
         this.setState({
             selectableRooms: sortRooms(ok),
@@ -59,8 +64,14 @@ export default class SourceAccount extends React.Component<Props, State> {
         });
     }
 
-    onMigrateProfileChanged(migrateProfile: boolean) {
-        this.setState({ migrateProfile }, () => this.checkAccount(this.state.loadedAccount!));
+    onMigrationOptionChanged(key: keyof MigrationOptions, value: boolean) {
+        this.setState((state) => ({
+            ...state,
+            migrationOptions: {
+                ...state.migrationOptions,
+                [key]: value,
+            },
+        }), () => this.checkAccount(this.state.loadedAccount!))
     }
 
     setClient(client: sdk.MatrixClient) {
@@ -110,12 +121,12 @@ export default class SourceAccount extends React.Component<Props, State> {
                 break;
             case AccountState.AccountLoaded:
                 inner = <AccountDetailsSelector
-                    migrateProfile={ this.state.migrateProfile }
+                    migrationOptions={ this.state.migrationOptions }
                     profileInfo={ this.state.loadedAccount!.profileInfo }
                     selectableRooms={ this.state.selectableRooms }
                     unavailableRooms={ this.state.unavailableRooms }
                     client={ this.state.client! }
-                    onMigrateProfileChanged={ this.onMigrateProfileChanged.bind(this) }
+                    onMigrationOptionChanged={ this.onMigrationOptionChanged.bind(this) }
                     onSkippedRoomsUpdated={ this.updateSkippedRooms.bind(this) }
                     onSwitchAccount={ this.switchAccount.bind(this) }
                 />;

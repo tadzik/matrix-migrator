@@ -7,12 +7,20 @@ import { sleep } from "matrix-js-sdk/lib/utils";
 import EventEmitter from "events"
 import TypedEmitter from "typed-emitter"
 
+export interface MigrationOptions {
+    leaveMigratedRooms: boolean,
+    migrateProfile: boolean,
+    addOldMxidNotification: boolean,
+    renameOldAccount: false|string,
+}
+
 export interface MigrationRequest {
-    profileInfo?:   ProfileInfo,
+    profileInfo:    ProfileInfo,
     directMessages: DirectMessages,
     ignoredUsers:   IgnoredUserList,
     pushRules:      sdk.IPushRules,
     rooms:          MigratableRoom[],
+    options:        MigrationOptions,
 }
 
 async function joinByInvite(source: sdk.MatrixClient, target: sdk.MatrixClient, roomId: string) {
@@ -188,7 +196,7 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
         events.emit('accountData', Status.Error, err as Error);
     }
 
-    if (request.profileInfo) {
+    if (request.options.migrateProfile) {
         try {
             events.emit('message', `Migrating profile`);
             events.emit('profile', Status.InProgress);

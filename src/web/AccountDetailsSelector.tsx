@@ -5,13 +5,27 @@ import ProfileCard from './ProfileCard';
 import RoomDetails from './RoomDetails';
 import MigratorErrorComponent from './MigratorError';
 
+export interface MigrationOptions {
+    leaveMigratedRooms: boolean,
+    migrateProfile: boolean,
+    addOldMxidNotification: boolean,
+    renameOldAccount: false|string,
+}
+
+const OPTIONS = [
+    { key: 'leaveMigratedRooms',     displayName: "Leave migrated rooms" },
+    { key: 'migrateProfile',         displayName: "Migrate profile" },
+    { key: 'addOldMxidNotification', displayName: "Add a notification rule in your new account for your old username" },
+    { key: 'renameOldAccount',       displayName: "Rename old account" },
+];
+
 interface Props {
     client: sdk.MatrixClient;
-    migrateProfile: boolean;
+    migrationOptions: MigrationOptions,
     profileInfo: ProfileInfo,
     selectableRooms: MigratableRoom[];
     unavailableRooms: UnavailableRoom[];
-    onMigrateProfileChanged: (migrateProfile: boolean) => void;
+    onMigrationOptionChanged: (key: keyof MigrationOptions, value: boolean) => void;
     onSwitchAccount: () => void;
     onSkippedRoomsUpdated: (skippedRooms: { [roomId: string]: boolean }) => void;
 }
@@ -30,7 +44,6 @@ export default class SourceAccount extends React.Component<Props, State> {
     }
 
     toggleRoom(roomId: string, ev: ChangeEvent<HTMLInputElement>) {
-        console.warn("Skipping state for", roomId, "is now", !ev.target.checked);
         this.setState({
             skipRoom: {
                 ...this.state.skipRoom,
@@ -39,10 +52,10 @@ export default class SourceAccount extends React.Component<Props, State> {
         }, () => this.props.onSkippedRoomsUpdated(this.state.skipRoom));
     }
 
-    toggleMigrateProfile(ev: ChangeEvent<HTMLInputElement>) {
-        this.props.onMigrateProfileChanged(ev.target.checked);
+    toggleMigrationOption(key: keyof MigrationOptions, ev: ChangeEvent<HTMLInputElement>) {
+        this.props.onMigrationOptionChanged(key, ev.target.checked);
     }
- 
+
     render() {
         return <div className="account-selector">
             <ProfileCard 
@@ -53,11 +66,18 @@ export default class SourceAccount extends React.Component<Props, State> {
             <button type="button" onClick={ this.props.onSwitchAccount }> Use another account </button>
             <section>
                 <h2> Options </h2>
-                <input type="checkbox" id="migrateProfile"
-                       checked={ this.props.migrateProfile }
-                       onChange={ this.toggleMigrateProfile.bind(this) }
-                />
-                <label htmlFor="migrateProfile"> Migrate profile </label>
+                <ul>
+                { OPTIONS.map(opt => <li key={ opt.key }>
+                    <input type="checkbox" id={ opt.key }
+                           checked={ this.props.migrationOptions[opt.key] }
+                           onChange={ this.toggleMigrationOption.bind(this, opt.key) }
+                    />
+                    <label htmlFor={ opt.key }> { opt.displayName } </label>
+                    { opt.key === 'renameOldAccount' && this.props.migrationOptions[opt.key] !== false && <>
+                        <input type="text" size={ 72 } placeholder="Migrated to @migrationtarget1:home.tadzik.net" />
+                    </> }
+                </li>) }
+                </ul>
             </section>
             <section>
                 <h2> Rooms </h2>
