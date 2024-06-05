@@ -134,7 +134,11 @@ async function migratePowerLevel(source: sdk.MatrixClient, target: sdk.MatrixCli
     const currentPLs = await target.getStateEvent(room.roomId, 'm.room.power_levels', '') as sdk.IPowerLevelsContent;
     const currentTargetPL = currentPLs.users?.[target.getUserId()!] ?? room.powerLevels.users_default ?? 0;
     if (sourcePL !== currentTargetPL) {
+        try {
         await source.setPowerLevel(room.roomId, target.getUserId()!, sourcePL);
+        } catch (err) {
+            throw new Error(`Failed to set power level to ${sourcePL}`);
+        }
     }
 }
 
