@@ -52,7 +52,6 @@ export default class SourceAccount extends React.Component<Props, State> {
     }
 
     checkAccount(account: Account) {
-        console.warn("Will skip", this.state.skippedRooms);
         const [ok, nok] = checkForProblems(this.state.client!.getUserId()!, account.migratableRooms, (room) => this.state.skippedRooms[room.roomId]);
         account.unavailableRooms.forEach(room => nok.add(room));
         this.props.onMigrationConfigured({
