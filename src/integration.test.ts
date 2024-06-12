@@ -252,6 +252,7 @@ describe('integration', () => {
         await source.setAvatarUrl(uploaded.content_uri);
 
         const account = await collectAccount(source);
+        checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
 
         await migrationFinished(migrateAccount(source, target, {
@@ -313,6 +314,7 @@ describe('integration', () => {
 
     test("can add a notificaton for old account's MXID", async () => {
         const account = await collectAccount(source);
+        checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
         await migrationFinished(migrateAccount(source, target, {
             ...account,
@@ -342,6 +344,7 @@ describe('integration', () => {
         await source.setPushRuleEnabled('global', sdk.PushRuleKind.ContentSpecific, 'disabledcookies', false);
 
         const account = await collectAccount(source);
+        checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
         await migrationFinished(migrateAccount(source, target, {
             ...account,
@@ -366,6 +369,7 @@ describe('integration', () => {
         await source.setAccountData('m.direct', dms);
 
         const account = await collectAccount(source);
+        checkForProblems(source.getUserId()!, account.migratableRooms);
         assertNoProblems(account);
         await migrationFinished(migrateAccount(source, target, {
             ...account,
@@ -375,6 +379,24 @@ describe('integration', () => {
 
         const newDms = await target.getAccountDataFromServer('m.direct') ?? {};
         expect(newDms).toEqual({});
+    });
+
+    test('should not complain is target account is more powerful than source', async () => {
+        const room = await source.createRoom({
+            preset: sdk.Preset.PublicChat,
+        });
+        await target.joinRoom(room.room_id);
+        await source.setPowerLevel(room.room_id, target.getUserId()!, 99);
+        await source.setPowerLevel(room.room_id, source.getUserId()!, undefined);
+
+        const account = await collectAccount(source);
+        checkForProblems(source.getUserId()!, account.migratableRooms);
+        assertNoProblems(account);
+        await migrationFinished(migrateAccount(source, target, {
+            ...account,
+            rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
+        }), expectRoomsMigrated(1));
     });
 
     describe('complaints', () => {
