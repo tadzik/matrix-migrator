@@ -75,9 +75,17 @@ div.profile-card {
     align-items: center;
 }
 
-div.profile-card img {
+.small-image {
     width: 3rem;
     height: 3rem;
+}
+
+.tiny-image {
+    width: 1rem;
+    height: 1rem;
+}
+
+div.profile-card img {
     margin-right: 1rem;
 }
 
@@ -86,8 +94,6 @@ div.profile-card div.img-fallback {
     align-items: center;
     justify-content: center;
     font-size: x-large;
-    width: 3rem;
-    height: 3rem;
     margin-right: 1rem;
 }
 

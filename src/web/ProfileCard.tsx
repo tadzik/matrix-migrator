@@ -1,4 +1,5 @@
 import React from 'react';
+import ImageMaybe from './ImageMaybe';
 
 interface Props {
     avatarUrl?: string;
@@ -9,8 +10,11 @@ interface Props {
 export default function ProfileCard(props: Props) {
     return <div>
         <div className="profile-card">
-            { props.avatarUrl && <img src={ props.avatarUrl } /> }
-            { !props.avatarUrl && <div className="img-fallback"> ? </div> }
+            <ImageMaybe
+                src={ props.avatarUrl }
+                fallback={ props.displayName ?? props.entityId }
+                alt={ `${props.displayName}'s picture` }
+            />
             <div>
                 <span className="display-name"> { props.displayName } </span>
                 <br />

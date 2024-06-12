@@ -14,7 +14,7 @@ enum AccountState {
 }
 
 interface Props {
-    onAccountSet: (account: sdk.MatrixClient) => void,
+    onAccountSet: (account?: sdk.MatrixClient) => void,
     onMigrationConfigured: (migration: MigrationRequest) => void,
 }
 
@@ -31,6 +31,8 @@ interface State {
 }
 
 export default class SourceAccount extends React.Component<Props, State> {
+    formId = 'sourceAccount';
+
     constructor(props: Props) {
         super(props);
 
@@ -82,8 +84,13 @@ export default class SourceAccount extends React.Component<Props, State> {
     }
 
     switchAccount() {
-        this.setState({
-            accountState: AccountState.NeedsLogin,
+        this.state.client!.logout().finally(() => {
+            sessionStorage.removeItem(`${this.formId}:mxid`);
+            sessionStorage.removeItem(`${this.formId}:accessToken`);
+            this.props.onAccountSet(undefined);
+            this.setState({
+                accountState: AccountState.NeedsLogin,
+            });
         });
     }
 
@@ -110,7 +117,7 @@ export default class SourceAccount extends React.Component<Props, State> {
         switch (this.state.accountState) {
             case AccountState.NeedsLogin:
                 inner = <LoginForm
-                    formId="sourceAccount"
+                    formId={ this.formId }
                     onClientLoggedIn={ this.setClient.bind(this) }
                 />;
                 break;

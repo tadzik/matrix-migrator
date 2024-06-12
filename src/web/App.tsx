@@ -27,11 +27,11 @@ export default class App extends React.Component<unknown, State> {
         this.setState({ migrationRequest });
     }
 
-    onSourceAccountSet(sourceAccount: sdk.MatrixClient) {
+    onSourceAccountSet(sourceAccount: sdk.MatrixClient|undefined) {
         this.setState({ sourceAccount });
     }
 
-    onTargetAccountSet(targetAccount: sdk.MatrixClient) {
+    onTargetAccountSet(targetAccount: sdk.MatrixClient|undefined) {
         this.setState({ targetAccount });
     }
 
