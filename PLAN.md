@@ -10,7 +10,7 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 ## Prep (UI)
 
 - [x] Obtain access keys to both accounts
-  - [ ] Support SSO
+  - [x] Support SSO
 - [x] Obtain C-S endpoints for both servers automagically
 
 ## Rooms
