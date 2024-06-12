@@ -4,13 +4,7 @@ import { MigratableRoom, ProfileInfo, UnavailableRoom } from "../collector";
 import ProfileCard from './ProfileCard';
 import RoomDetails from './RoomDetails';
 import MigratorErrorComponent from './MigratorError';
-
-export interface MigrationOptions {
-    leaveMigratedRooms: boolean,
-    migrateProfile: boolean,
-    addOldMxidNotification: boolean,
-    renameOldAccount: false|string,
-}
+import { MigrationOptions } from '../migrator';
 
 const OPTIONS = [
     { key: 'leaveMigratedRooms',     displayName: "Leave migrated rooms" },
@@ -25,7 +19,7 @@ interface Props {
     profileInfo: ProfileInfo,
     selectableRooms: MigratableRoom[];
     unavailableRooms: UnavailableRoom[];
-    onMigrationOptionChanged: (key: keyof MigrationOptions, value: boolean) => void;
+    onMigrationOptionChanged: (key: keyof MigrationOptions, value: unknown) => void;
     onSwitchAccount: () => void;
     onSkippedRoomsUpdated: (skippedRooms: { [roomId: string]: boolean }) => void;
 }
@@ -35,12 +29,20 @@ interface State {
 }
 
 export default class SourceAccount extends React.Component<Props, State> {
+    renameOldAccountToRef: React.RefObject<HTMLInputElement>;
+
     constructor(props: Props) {
         super(props);
+
+        this.renameOldAccountToRef = React.createRef();
 
         this.state = {
             skipRoom: {},
         };
+    }
+
+    componentDidMount(): void {
+        this.renameOldAccountToRef.current!.value = 'Account moved';
     }
 
     toggleRoom(roomId: string, ev: ChangeEvent<HTMLInputElement>) {
@@ -53,7 +55,15 @@ export default class SourceAccount extends React.Component<Props, State> {
     }
 
     toggleMigrationOption(key: keyof MigrationOptions, ev: ChangeEvent<HTMLInputElement>) {
-        this.props.onMigrationOptionChanged(key, ev.target.checked);
+        if (key === 'renameOldAccount') {
+            if (ev.target.type === 'checkbox') {
+                this.props.onMigrationOptionChanged(key, ev.target.checked ? this.renameOldAccountToRef.current?.value : null);
+            } else if (this.props.migrationOptions.renameOldAccount !== null) {
+                this.props.onMigrationOptionChanged(key, this.renameOldAccountToRef.current!.value);
+            }
+        } else {
+            this.props.onMigrationOptionChanged(key, ev.target.checked);
+        }
     }
 
     render() {
@@ -69,12 +79,17 @@ export default class SourceAccount extends React.Component<Props, State> {
                 <ul>
                 { OPTIONS.map(opt => <li key={ opt.key }>
                     <input type="checkbox" id={ opt.key }
-                           checked={ this.props.migrationOptions[opt.key] }
+                           defaultChecked={ this.props.migrationOptions[opt.key] }
                            onChange={ this.toggleMigrationOption.bind(this, opt.key) }
                     />
                     <label htmlFor={ opt.key }> { opt.displayName } </label>
-                    { opt.key === 'renameOldAccount' && this.props.migrationOptions[opt.key] !== false && <>
-                        <input type="text" size={ 72 } placeholder="Migrated to @migrationtarget1:home.tadzik.net" />
+                    { opt.key === 'renameOldAccount' && <>
+                        <input
+                            type="text" size={ 72 }
+                            ref={ this.renameOldAccountToRef }
+                            onChange={ this.toggleMigrationOption.bind(this, opt.key) }
+                            disabled={ this.props.migrationOptions[opt.key] === null }
+                        />
                     </> }
                 </li>) }
                 </ul>

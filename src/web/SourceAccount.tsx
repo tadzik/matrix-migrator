@@ -42,7 +42,7 @@ export default class SourceAccount extends React.Component<Props, State> {
                 addOldMxidNotification: false,
                 leaveMigratedRooms: false,
                 migrateProfile: false,
-                renameOldAccount: false,
+                renameOldAccount: null,
             },
             skippedRooms: {},
             roomsToMigrate: [],
@@ -65,7 +65,7 @@ export default class SourceAccount extends React.Component<Props, State> {
         });
     }
 
-    onMigrationOptionChanged(key: keyof MigrationOptions, value: boolean) {
+    onMigrationOptionChanged(key: keyof MigrationOptions, value: unknown) {
         this.setState((state) => ({
             ...state,
             migrationOptions: {

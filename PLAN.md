@@ -59,6 +59,6 @@ Spec: https://docs.google.com/document/d/1mLfF6RxlwLx0MTRgsLQ1iYl7QZGhnlydXBFbbN
 All optional
 
 - [ ] Have *source* demote itself in old rooms
-- [ ] Have *source* leave successfully migrated rooms
-- [ ] Have *source* change the displayname to advertise the new MXID
-- [ ] Add a push rule for the old MXID, so that we get notified of replies/mentions of the *source*
+- [x] Have *source* leave successfully migrated rooms
+- [x] Have *source* change the displayname to advertise the new MXID
+- [x] Add a push rule for the old MXID, so that we get notified of replies/mentions of the *source*
