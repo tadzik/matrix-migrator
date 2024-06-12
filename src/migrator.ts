@@ -11,7 +11,7 @@ export interface MigrationOptions {
     leaveMigratedRooms: boolean,
     migrateProfile: boolean,
     addOldMxidNotification: boolean,
-    renameOldAccount: false|string,
+    renameOldAccount: string|null,
 }
 
 export interface MigrationRequest {
@@ -157,6 +157,7 @@ export enum Status {
 }
 
 export type MigrationEvents = {
+    error: (msg: string, error: Error) => void,
     message: (msg: string) => void,
     room: (roomId: string, status: Status, error?: Error) => void,
     accountData: (status: Status, error?: Error) => void,
@@ -180,6 +181,10 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
 
             await migratePowerLevel(source, target, room);
 
+            if (request.options.leaveMigratedRooms) {
+                await source.leave(room.roomId);
+            }
+
             events.emit('room', room.roomId, Status.Finished);
         } catch (err) {
             console.error(`Failed to join room ${room.roomId} ${room.roomName ? `(${room.roomName}) ` : ''}: ${err}`);
@@ -196,6 +201,17 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
         events.emit('accountData', Status.Error, err as Error);
     }
 
+    if (request.options.addOldMxidNotification) {
+        try {
+            await target.addPushRule('global', sdk.PushRuleKind.ContentSpecific, `migrated-from.${source.getUserId()!}`, {
+                actions: [ sdk.PushRuleActionName.Notify ],
+                pattern: source.getUserId()!,
+            });
+        } catch (err) {
+            events.emit('error', "Failed to add notification rule for old Matrix ID", err as Error);
+        }
+    }
+
     if (request.options.migrateProfile) {
         try {
             events.emit('message', `Migrating profile`);
@@ -204,6 +220,15 @@ async function doMigrateAccount(source: sdk.MatrixClient, target: sdk.MatrixClie
             events.emit('profile', Status.Finished);
         } catch (err) {
             events.emit('profile', Status.Error, err as Error);
+        }
+    }
+
+    if (request.options.renameOldAccount) {
+        try {
+            events.emit('message', "Renaming old account");
+            await source.setDisplayName(request.options.renameOldAccount);
+        } catch (err) {
+            events.emit('error', "Failed to rename old account", err as Error);
         }
     }
 

@@ -27,6 +27,13 @@ interface User {
     device_id: string,
 }
 
+const noopOptions = {
+    leaveMigratedRooms: false,
+    migrateProfile: false,
+    addOldMxidNotification: false,
+    renameOldAccount: null,
+};
+
 async function registerUser(serverUrl: string, sharedSecret: string, username: string): Promise<User> {
     const sourceClient = sdk.createClient({
         baseUrl: serverUrl,
@@ -125,6 +132,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
         }), expectRoomsMigrated(1));
 
         const joinedRooms = await target.getJoinedRooms();
@@ -146,6 +154,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
         }), expectRoomsMigrated(1));
 
         const joinedRooms = await target.getJoinedRooms();
@@ -159,6 +168,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
         }), expectRoomsMigrated(1));
     });
 
@@ -183,6 +193,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
         }), expectRoomsMigrated(2));
 
         const joinedRooms = await target.getJoinedRooms();
@@ -197,6 +208,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
         }), expectRoomsMigrated(0));
 
         // MatrixClient.getIgnoredUsers() is broken: https://github.com/matrix-org/matrix-js-sdk/issues/4176
@@ -224,6 +236,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
         }), expectRoomsMigrated(1));
         const joinedRooms = await target.getJoinedRooms();
         expect(joinedRooms.joined_rooms.length).toBe(1);
@@ -244,11 +257,76 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: {
+                ...noopOptions,
+                migrateProfile: true,
+            }
         }), expectRoomsMigrated(0));
 
         const profileInfo = await target.getProfileInfo(target.getUserId()!);
         expect(profileInfo.displayname).toEqual(displayName);
         expect(profileInfo.avatar_url).toEqual(uploaded.content_uri);
+    });
+
+    test('can leave rooms with the old account', async () => {
+        const room = await source.createRoom({ preset: sdk.Preset.PublicChat });
+
+        const account = await collectAccount(source);
+        expect(account.migratableRooms.size).toBe(1);
+        const collectedRoom = Array.from(account.migratableRooms)[0];
+        expect(collectedRoom.roomId).toBe(room.room_id);
+
+        checkForProblems(source.getUserId()!, account.migratableRooms);
+        assertNoProblems(account);
+
+        await migrationFinished(migrateAccount(source, target, {
+            ...account,
+            rooms: sortRooms(account.migratableRooms),
+            options: {
+                ...noopOptions,
+                leaveMigratedRooms: true,
+            },
+        }), expectRoomsMigrated(1));
+
+        const sourceJoinedRooms = await source.getJoinedRooms();
+        expect(sourceJoinedRooms.joined_rooms.length).toBe(0);
+    });
+
+    test('can rename old account after the migration', async () => {
+        const account = await collectAccount(source);
+        expect(account.migratableRooms.size).toBe(0);
+
+        const renameTo = 'Moved to a better place';
+
+        await migrationFinished(migrateAccount(source, target, {
+            ...account,
+            rooms: [],
+            options: {
+                ...noopOptions,
+                renameOldAccount: renameTo,
+            },
+        }), expectRoomsMigrated(0));
+
+        const sourceProfile = await source.getProfileInfo(source.getUserId()!);
+        expect(sourceProfile.displayname).toEqual(renameTo);
+    });
+
+    test("can add a notificaton for old account's MXID", async () => {
+        const account = await collectAccount(source);
+        assertNoProblems(account);
+        await migrationFinished(migrateAccount(source, target, {
+            ...account,
+            rooms: sortRooms(account.migratableRooms),
+            options: {
+                ...noopOptions,
+                addOldMxidNotification: true,
+            },
+        }), expectRoomsMigrated(0));
+
+        const sourcePushRules = await source.getPushRules();
+        const targetPushRules = await target.getPushRules();
+        expect(targetPushRules.global.content?.length).toBeGreaterThan(sourcePushRules.global.content?.length ?? 0);
+        expect(targetPushRules.global.content!.some(r => r.pattern === source.getUserId()!)).toEqual(true);
     });
 
     test('migrates push rules', async () => {
@@ -268,6 +346,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: sortRooms(account.migratableRooms),
+            options: noopOptions,
         }), expectRoomsMigrated(0));
 
         const pushRules = await target.getPushRules();
@@ -291,6 +370,7 @@ describe('integration', () => {
         await migrationFinished(migrateAccount(source, target, {
             ...account,
             rooms: [],
+            options: noopOptions,
         }), expectRoomsMigrated(0));
 
         const newDms = await target.getAccountDataFromServer('m.direct') ?? {};
