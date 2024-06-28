@@ -1,8 +1,9 @@
 import * as sdk from "matrix-js-sdk";
+
 import Semaphore from "@chriscdn/promise-semaphore";
 
-import { HistoryVisibility, JoinRule } from "./sdk-helpers";
-import { IncompleteStateError, MigratorError, RoomTombstonedError } from "./errors";
+import { HistoryVisibility, JoinRule, KeyOrPassphrase, exportRoomKeys } from "./sdk-helpers";
+import { IncompleteStateError, KeyBackupUnavailableError, MigratorError, RoomTombstonedError } from "./errors";
 
 export interface ProfileInfo {
     displayname?: string,
@@ -45,6 +46,10 @@ export interface Account {
 
     migratableRooms: Set<MigratableRoom>,
     unavailableRooms: Set<UnavailableRoom>,
+
+    roomKeys?: sdk.IMegolmSessionData[],
+
+    problems: MigratorError[],
 }
 
 function getStateEvent(state: sdk.IStateEvent[], type: string): sdk.IContent {
@@ -115,7 +120,11 @@ async function collectRoom(client: sdk.MatrixClient, roomId: string): Promise<Mi
     };
 }
 
-export async function collectAccount(client: sdk.MatrixClient, progressTracker?: (msg: string, count?: number, total?: number) => void): Promise<Account> {
+export async function collectAccount(
+    client: sdk.MatrixClient,
+    backupKeyOrPassphrase?: KeyOrPassphrase,
+    progressTracker?: (msg: string, count?: number, total?: number) => void
+): Promise<Account> {
     progressTracker?.("Collecting account data");
     const directMessages = await client.getAccountDataFromServer('m.direct') ?? {};
     const ignoredUsers   = await client.getAccountDataFromServer('m.ignored_user_list') as IgnoredUserList ?? { ignored_users: {} };
@@ -155,6 +164,18 @@ export async function collectAccount(client: sdk.MatrixClient, progressTracker?:
         reportProgress();
     }));
 
+    const problems: MigratorError[] = [];
+
+    let roomKeys: sdk.IMegolmSessionData[]|undefined;
+    try {
+        if (!backupKeyOrPassphrase) {
+            throw new Error("No backup key or passphrase provided");
+        }
+        roomKeys = await exportRoomKeys(client, backupKeyOrPassphrase);
+    } catch (err: any) {
+        problems.push(new KeyBackupUnavailableError(err.toString()));
+    }
+
     return {
         profileInfo,
         migratableRooms,
@@ -162,5 +183,7 @@ export async function collectAccount(client: sdk.MatrixClient, progressTracker?:
         directMessages,
         ignoredUsers,
         pushRules,
+        roomKeys,
+        problems,
     };
 }
