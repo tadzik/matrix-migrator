@@ -1,5 +1,6 @@
 import React from 'react';
 import * as sdk from "matrix-js-sdk";
+import { MXID_REGEX } from "../sdk-helpers";
 import ImageMaybe from './ImageMaybe';
 
 interface SsoProvider {
@@ -68,7 +69,7 @@ export default class LoginForm extends React.Component<Props, State> {
     }
 
     async getBaseUrl(userId: string) {
-        const [, domain] = userId.match('[^:]+:(.*)')!;
+        const domain = userId.match(MXID_REGEX)![2];
         const wellKnown = await sdk.AutoDiscovery.getRawClientConfig(domain);
         return wellKnown['m.homeserver']?.base_url ?? 'https://' + domain;;
     }

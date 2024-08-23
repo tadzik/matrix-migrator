@@ -1,7 +1,7 @@
 import * as sdk from "matrix-js-sdk";
 
 import { DirectMessages, IgnoredUserList, MigratableRoom, ProfileInfo } from "./collector";
-import { JoinRule, catchNotFound, patiently } from "./sdk-helpers";
+import { MXID_REGEX, JoinRule, catchNotFound, patiently } from "./sdk-helpers";
 import { sleep } from "matrix-js-sdk/lib/utils";
 
 import EventEmitter from "events"
@@ -124,7 +124,7 @@ async function migrateProfile(profileInfo: ProfileInfo, target: sdk.MatrixClient
         await target.setDisplayName(profileInfo.displayname);
     }
     if (profileInfo.avatar_url) {
-        const [, targetServerName] = target.getUserId()!.match(/^@[^:]+:(.+)$/)!;
+        const targetServerName = target.getUserId()!.match(MXID_REGEX)![2];
         const [, sourceAvatarServerName] = profileInfo.avatar_url.match(/^mxc:\/\/([^/]+)/)!
         if (sourceAvatarServerName != targetServerName) {
             const httpUrl = target.mxcUrlToHttp(profileInfo.avatar_url)!;
