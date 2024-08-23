@@ -179,6 +179,7 @@ export default class LoginForm extends React.Component<Props, State> {
                     <input type="password" name="password" ref={ this.passwordRef } />
                     &nbsp;
                     <input type="submit" value="Submit" />
+                </div> }
                 { this.state.ssoProviders && <div>
                     Delegated login:&nbsp;
                     { this.state.ssoProviders.map(provider => <>
@@ -192,7 +193,6 @@ export default class LoginForm extends React.Component<Props, State> {
                             { provider.name }
                         </button>
                     </>) }
-                </div> }
                 </div> }
             </label>
             { error }
