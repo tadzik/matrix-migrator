@@ -11,6 +11,8 @@ export enum JoinRule {
     KnockRestricted = 'knock_restricted',
 }
 
+export const MXID_REGEX = /([^:]*):(.*)/;
+
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace JoinRule {
     export function fromContent(content: sdk.IContent): JoinRule {
